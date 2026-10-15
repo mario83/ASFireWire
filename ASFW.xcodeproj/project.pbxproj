@@ -267,6 +267,7 @@
 		7FDF0CBEF91429BDD8AC2348 /* AVCDiscovery.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5CFD326310BE43F6EA6ECF38 /* AVCDiscovery.cpp */; };
 		802EB5D0041784102F261F25 /* BoundedDequeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED113166DE4061F3A41FC54 /* BoundedDequeTests.swift */; };
 		806C06A5C005F19A60C71EBE /* FamilyProtocolConstruction.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF1C3092A44090D6B97FF5EB /* FamilyProtocolConstruction.cpp */; };
+		808323C7AEB060B9DCC0FFD1 /* OrpheusMixerSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56B276DBA471FEFB13A619A /* OrpheusMixerSection.swift */; };
 		80A592FC5106729EAEC84252 /* AvcProbeConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CC7646FE5D1942EBBF6494D /* AvcProbeConfirmation.swift */; };
 		810AEF6ADC5C6393DAB9AC3B /* InfoRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 070831F2CFF382CA4A41D45E /* InfoRow.swift */; };
 		8167CD73526789E7E00A0E9B /* AvcUnitsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C07B4BF21A1A22764CAFA16C /* AvcUnitsView.swift */; };
@@ -332,6 +333,7 @@
 		9DEB99CB833F0C5A33229A6C /* AvcReportExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC75CD6326E3E7B4381F379D /* AvcReportExporter.swift */; };
 		9E9B2EAD948ACB82294F660B /* ASFWAvcAudioStream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D38306BE12B0317CBF733A3F /* ASFWAvcAudioStream.cpp */; };
 		9EDB35B4B0F9F503A82DB7A8 /* AddressSpaceManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27D4308D539CCEC3A5EBCFF7 /* AddressSpaceManager.cpp */; };
+		9F4D3C33982DD404CC1659D4 /* OrpheusControlComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45A5763BBD325966DBAD98A0 /* OrpheusControlComponents.swift */; };
 		A040141317C828BDF58DB6A6 /* IsochHandler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0AC0E4BEE81FF4834F182189 /* IsochHandler.cpp */; };
 		A06D5B26AD4A33D22CF662A7 /* IsochRxDmaRing.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B18FDE0F5D8718313A4BD2E9 /* IsochRxDmaRing.cpp */; };
 		A0DA3FF0E711E29FF4860B42 /* BusResetHandler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 00D5EC5AEB7989BC5DBE3E15 /* BusResetHandler.cpp */; };
@@ -363,6 +365,7 @@
 		AFAE1AA9D377FF45A5B86AFA /* StopRoutine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7EA6252BE6E20C6460DE78C /* StopRoutine.cpp */; };
 		AFC2E3AB6C936BA99AE2EA14 /* BeBoBProtocol.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3287F0F488601696A613BF7E /* BeBoBProtocol.cpp */; };
 		B07CDAE71C02447EAFF0D87F /* MCPSbp2ToolsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D052AC7D4757845AB77B75B1 /* MCPSbp2ToolsTests.swift */; };
+		B0D6B497A97F18548F24AC53 /* DriverConnector+Orpheus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B3A1187A8172043B2CFEEC9 /* DriverConnector+Orpheus.swift */; };
 		B0F2BC5D0380C0A6C5D22E96 /* IsochTxDmaRing.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 94EF7FD118B54788C8319EFE /* IsochTxDmaRing.cpp */; };
 		B20580E11D942850F1B8C005 /* ModernContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736A4C5A335E4750AF418976 /* ModernContentView.swift */; };
 		B2065E363F1AC2D5DB5EF5DA /* PhyDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98670FC8D8008C5956DED82 /* PhyDiagnostics.swift */; };
@@ -396,8 +399,10 @@
 		BF7A21FD358749C64D9A3BEB /* AnalyzerPanelCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 321A63C17C6A3EFA58FF449C /* AnalyzerPanelCanvas.swift */; };
 		BFA67B801CE2FD081CFA4BF5 /* AVCSampleRateMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AC380D7BBAE68986EC3385C /* AVCSampleRateMappingTests.swift */; };
 		BFDB87D622855A64D9A87BC6 /* Spectrum.metal in Sources */ = {isa = PBXBuildFile; fileRef = 51EA98AFB39E5AB9C08EB339 /* Spectrum.metal */; };
+		C0113F682DEEB235D9FD6A1B /* OrpheusControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DB9FDCB683F72E660C52CDD /* OrpheusControlView.swift */; };
 		C07DCD725AE05F943F709CF4 /* KWeightBlockPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 684DBA52820698B1EFBC9C49 /* KWeightBlockPipeline.swift */; };
 		C0E4505CB625480E1417773A /* AudioDeviceHost.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 621A34A93F77E9ADA4BB7860 /* AudioDeviceHost.cpp */; };
+		C1003A08FF5568EDDE1CFF81 /* OrpheusControlViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12CA7006039C7725723C4410 /* OrpheusControlViewModel.swift */; };
 		C18B80D7017F8B7B1E6795C3 /* StereoHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAC7D48050892BC4080D61AE /* StereoHistoryView.swift */; };
 		C1B90CB0E16C8BBF5DCD6E68 /* BusInspectorTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF686DD5D5F51F23BB44565 /* BusInspectorTab.swift */; };
 		C1C14D86D56F95DB279F339F /* ApogeeParamsSerdes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D6F81F4D6F67BA694F51F03 /* ApogeeParamsSerdes.cpp */; };
@@ -447,6 +452,7 @@
 		DB27C439E148A97E29A0D466 /* DeviceDiscoveryHandler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2E4B81BA5CC13B1A56B9CBD4 /* DeviceDiscoveryHandler.cpp */; };
 		DC89FE9F882D19BE1FDB16E4 /* OxfordCsr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E23557505A30ACA0C184956D /* OxfordCsr.cpp */; };
 		DCC7DB19E290D1B5A1B0291B /* TopologyMapBuilder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2EED729D62CF1EBCCBEC147C /* TopologyMapBuilder.cpp */; };
+		DD869DE8879018D08904C3EA /* OrpheusModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E9384D99E7155512163A62C /* OrpheusModels.swift */; };
 		DD9FC9E23072B1827067A5C5 /* SidebarGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = C690E61167E6B1DCFB0725C2 /* SidebarGroup.swift */; };
 		DDAFD7760896C66C6CE6D1CE /* ControllerCoreInterrupts.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7F8FF3396C489ABE6CEBD9C /* ControllerCoreInterrupts.cpp */; };
 		DE55E9D77A03DA7545779A33 /* DuetControlViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C5562AC82FC027F19D3BBAC /* DuetControlViewModel.swift */; };
@@ -513,6 +519,7 @@
 		FE6CA54D91492CE7A3CD713F /* ATTrace.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F17D141D9D8F19E56E16DB9 /* ATTrace.cpp */; };
 		FED988555C8E78A32E6399B9 /* SBP2ManagementORB.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FB4F38B538B6F7A28F16625C /* SBP2ManagementORB.cpp */; };
 		FEF9E3E1F54EB89A0CD417A2 /* DiagnosticsService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E16CD7D8847B269F7291724B /* DiagnosticsService.cpp */; };
+		FFE78113636CF5F83CCC870B /* OrpheusCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74879067A485D11FBCDE1CFB /* OrpheusCodecTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -599,6 +606,7 @@
 		0A84CBB71A14092CC7AAA130 /* AudioProfileRegistry.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AudioProfileRegistry.cpp; sourceTree = "<group>"; };
 		0AC0E4BEE81FF4834F182189 /* IsochHandler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IsochHandler.cpp; sourceTree = "<group>"; };
 		0B1E275E80008044A52CD867 /* FCPResponseRouter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = FCPResponseRouter.hpp; sourceTree = "<group>"; };
+		0B3A1187A8172043B2CFEEC9 /* DriverConnector+Orpheus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DriverConnector+Orpheus.swift"; sourceTree = "<group>"; };
 		0BB2655AA61DF8D0D37E22FA /* Logging.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Logging.cpp; sourceTree = "<group>"; };
 		0BE25121F9639A88ADB40B10 /* AvcAudioConfig.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AvcAudioConfig.hpp; sourceTree = "<group>"; };
 		0C5062B066B69DAD0452E8D3 /* WireFormat.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = WireFormat.hpp; sourceTree = "<group>"; };
@@ -635,6 +643,7 @@
 		123C5E162AF714F2B8A2D4AD /* IsochTxDescriptorSlab.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = IsochTxDescriptorSlab.hpp; sourceTree = "<group>"; };
 		1281C18E0DBA9B92E9E7E03C /* DriverConnector+Discovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DriverConnector+Discovery.swift"; sourceTree = "<group>"; };
 		12831FD846E93DE7A91DC3FC /* GenerationTracker.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GenerationTracker.cpp; sourceTree = "<group>"; };
+		12CA7006039C7725723C4410 /* OrpheusControlViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrpheusControlViewModel.swift; sourceTree = "<group>"; };
 		1301C9CE4C3BF9D915E506C2 /* TransactionManager.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TransactionManager.hpp; sourceTree = "<group>"; };
 		13E4A99C9F9E4E651BF58F7E /* ROMReader.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ROMReader.hpp; sourceTree = "<group>"; };
 		143C673434E115925D0773AB /* Apogee.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Apogee.hpp; sourceTree = "<group>"; };
@@ -671,6 +680,7 @@
 		1DC9C3863E2E23A2E1EACC27 /* FireWireBusImpl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = FireWireBusImpl.cpp; sourceTree = "<group>"; };
 		1DF4367160A96ED607F98D15 /* BeBoBProtocol.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = BeBoBProtocol.hpp; sourceTree = "<group>"; };
 		1E5A1B83512229A46CB6F95A /* AvcProbeAdmission.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AvcProbeAdmission.hpp; sourceTree = "<group>"; };
+		1E9384D99E7155512163A62C /* OrpheusModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrpheusModels.swift; sourceTree = "<group>"; };
 		1EC9CA965BBAB9A20B4F53AA /* SpectrogramTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrogramTests.swift; sourceTree = "<group>"; };
 		1F01A2AE881C63197695A0F1 /* DriverConnectorModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverConnectorModels.swift; sourceTree = "<group>"; };
 		1FBCE23C33F1D62789320910 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
@@ -844,6 +854,7 @@
 		44F97EA86727E28505F4C03C /* DiceNotificationRouter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DiceNotificationRouter.cpp; sourceTree = "<group>"; };
 		44FA10BF989E8936BE902E6A /* Tracking.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Tracking.hpp; sourceTree = "<group>"; };
 		458810E064D7C77B0F41B77D /* ROMScanSession.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ROMScanSession.cpp; sourceTree = "<group>"; };
+		45A5763BBD325966DBAD98A0 /* OrpheusControlComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrpheusControlComponents.swift; sourceTree = "<group>"; };
 		45B16280BCB222CDD3CDEE11 /* IAudioDeviceProfile.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = IAudioDeviceProfile.hpp; sourceTree = "<group>"; };
 		46130AD5DDDF8E8B28EFF996 /* DICETransaction.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DICETransaction.cpp; sourceTree = "<group>"; };
 		4664D9D7CFDFCE96A7EB8CA4 /* AudioPropertyKeys.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AudioPropertyKeys.hpp; sourceTree = "<group>"; };
@@ -1044,6 +1055,7 @@
 		74260321CFC16C9580F80885 /* IsochReceiveContext.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = IsochReceiveContext.hpp; sourceTree = "<group>"; };
 		746DA77C4A934EC1BB0D2BD9 /* ASFWMCPIrmCasTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASFWMCPIrmCasTools.swift; sourceTree = "<group>"; };
 		747E8B61F56CFA97DD0187AA /* MetricCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricCard.swift; sourceTree = "<group>"; };
+		74879067A485D11FBCDE1CFB /* OrpheusCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrpheusCodecTests.swift; sourceTree = "<group>"; };
 		74EADDF94AFD7CB8E9D1A8FD /* MAudioInternalTxTiming.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = MAudioInternalTxTiming.hpp; sourceTree = "<group>"; };
 		751D51C8E06FC1670D3DCDB4 /* MotuModel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = MotuModel.hpp; sourceTree = "<group>"; };
 		753A90E159A919F0CF3D606B /* AmdtpTypes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AmdtpTypes.hpp; sourceTree = "<group>"; };
@@ -1201,6 +1213,7 @@
 		9D6A93FFD51132B2A4F8B00E /* ASFWMCPBusResetTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASFWMCPBusResetTools.swift; sourceTree = "<group>"; };
 		9D7C91E89F804C760390C3DA /* DriverConnector+LogRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DriverConnector+LogRing.swift"; sourceTree = "<group>"; };
 		9D953AE0CF2E263F417ADAAB /* TransactionStorage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TransactionStorage.cpp; sourceTree = "<group>"; };
+		9DB9FDCB683F72E660C52CDD /* OrpheusControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrpheusControlView.swift; sourceTree = "<group>"; };
 		9DF68FEB3C0FCEBFC05F8985 /* AudioDebugViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDebugViewModel.swift; sourceTree = "<group>"; };
 		9EA9D501416A451253FED303 /* AvcDuplexClockObservation.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AvcDuplexClockObservation.hpp; sourceTree = "<group>"; };
 		9F08FEE5F26AC6B5F5001CEE /* ASFWAvcLevelControl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ASFWAvcLevelControl.cpp; sourceTree = "<group>"; };
@@ -1356,6 +1369,7 @@
 		C4D6CDCA70B2EA172578F5BF /* RmeFamilyAdapter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = RmeFamilyAdapter.hpp; sourceTree = "<group>"; };
 		C516291F7D576A9672B1D447 /* RootSelectionCoordinator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = RootSelectionCoordinator.cpp; sourceTree = "<group>"; };
 		C5390203CDB35CB79E64B942 /* BusManagerElection.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = BusManagerElection.cpp; sourceTree = "<group>"; };
+		C56B276DBA471FEFB13A619A /* OrpheusMixerSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrpheusMixerSection.swift; sourceTree = "<group>"; };
 		C56EEA8DE009B8C7E98B320A /* ASFWDriver.Debug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ASFWDriver.Debug.entitlements; sourceTree = "<group>"; };
 		C5776F6B807031795F90788F /* ASFWMCPToolCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASFWMCPToolCatalog.swift; sourceTree = "<group>"; };
 		C585AEE3BB2B09A798AB2E6D /* MCPLiveDriverControlTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPLiveDriverControlTests.swift; sourceTree = "<group>"; };
@@ -2120,6 +2134,9 @@
 				DA13AD2AD61D8F60C878BAA9 /* LoudnessHistoryView.swift */,
 				BC389C347FC4129A24CD6B55 /* MCPSettingsView.swift */,
 				736A4C5A335E4750AF418976 /* ModernContentView.swift */,
+				45A5763BBD325966DBAD98A0 /* OrpheusControlComponents.swift */,
+				9DB9FDCB683F72E660C52CDD /* OrpheusControlView.swift */,
+				C56B276DBA471FEFB13A619A /* OrpheusMixerSection.swift */,
 				1FBCE23C33F1D62789320910 /* OverviewView.swift */,
 				6C6B4EEB948F7332CD86745F /* ReadWriteView.swift */,
 				EFA374405CB437F912867561 /* RomExplorerView.swift */,
@@ -2280,6 +2297,7 @@
 				51751F4E2707BF3956287D1F /* DuetViewModelLogicTests.swift */,
 				5547E3B90C64AA5CE17B300A /* DVFrameAssemblerTests.swift */,
 				C7C99BEBA907A7F59A00EE5A /* LogCategoryCatalogTests.swift */,
+				74879067A485D11FBCDE1CFB /* OrpheusCodecTests.swift */,
 				5A4E70ED75911158B0E744F2 /* AudioObserver */,
 				AA63228416151FD72A8A9C49 /* MCP */,
 			);
@@ -2378,6 +2396,7 @@
 				D352E1AB20AE58242F0A5529 /* BusInspectorNode.swift */,
 				1F01A2AE881C63197695A0F1 /* DriverConnectorModels.swift */,
 				CAF69C7EAD7C9436D75E9C14 /* DuetModels.swift */,
+				1E9384D99E7155512163A62C /* OrpheusModels.swift */,
 				FDB5F702B5BEE95708CFC5AF /* RomCache.swift */,
 				2D1898C56C850847761283D1 /* RomInterpreter.swift */,
 				5470A979030FEE276E814B89 /* RomModels.swift */,
@@ -2717,6 +2736,7 @@
 				29383D19EAC4373F75CBF552 /* DriverConnector+Lifecycle.swift */,
 				6FA63624C10EEF4E28C60EB7 /* DriverConnector+LoggingConfig.swift */,
 				9D7C91E89F804C760390C3DA /* DriverConnector+LogRing.swift */,
+				0B3A1187A8172043B2CFEEC9 /* DriverConnector+Orpheus.swift */,
 				6A816C540C2BEB377CE294ED /* DriverConnector+Saffire.swift */,
 				264D4CD41FF948792F95E023 /* DriverConnector+Status.swift */,
 				487FFDBA8B98968F6A7E5DCB /* DriverConnectorLogStore.swift */,
@@ -3506,6 +3526,7 @@
 				34ABE94694B100B9B628072C /* DriverLogViewModel.swift */,
 				7892E16293D409FFB4F00710 /* DriverViewModel.swift */,
 				4C5562AC82FC027F19D3BBAC /* DuetControlViewModel.swift */,
+				12CA7006039C7725723C4410 /* OrpheusControlViewModel.swift */,
 				E98670FC8D8008C5956DED82 /* PhyDiagnostics.swift */,
 				D470EFDF4D88F23A855E7D86 /* RomExplorerViewModel.swift */,
 				F9741333A3F544B641641494 /* SaffireMixerViewModel.swift */,
@@ -4239,6 +4260,7 @@
 				B5E2AAE7ACC3F26AD1DEE2E6 /* MCPToolDispatchTests.swift in Sources */,
 				E2BB42AEEB8BFF832A5F7A40 /* MCPTransactionSchemaTests.swift in Sources */,
 				378D59E7E59B7B11CE0FEF6F /* MCPWritePolicyTests.swift in Sources */,
+				FFE78113636CF5F83CCC870B /* OrpheusCodecTests.swift in Sources */,
 				5F7FDF8DEBADF8E990B5EAC3 /* SpectrogramTests.swift in Sources */,
 				B4EFC00793F63DA7E5B07058 /* SpectrumKernelTests.swift in Sources */,
 				9B3711D81A4F95978EE8227B /* WaterfallTests.swift in Sources */,
@@ -4376,6 +4398,7 @@
 				43E9F7DBC8C68F163661ABE3 /* DriverConnector+Lifecycle.swift in Sources */,
 				0AB0C833F3F66D9BAF12FEF4 /* DriverConnector+LogRing.swift in Sources */,
 				2B63AD73E9E124C02A392F9C /* DriverConnector+LoggingConfig.swift in Sources */,
+				B0D6B497A97F18548F24AC53 /* DriverConnector+Orpheus.swift in Sources */,
 				E07796C3FF28E4FF1CA3F467 /* DriverConnector+Saffire.swift in Sources */,
 				0267190E6597A8DA11482D7C /* DriverConnector+Status.swift in Sources */,
 				88663772C9C228C3DC7F6CBD /* DriverConnectorLogStore.swift in Sources */,
@@ -4403,6 +4426,11 @@
 				A7940B9303322D84C51BFE14 /* MetalSpectrumView.swift in Sources */,
 				5E05BDE900468AA53709FA6E /* MetricCard.swift in Sources */,
 				B20580E11D942850F1B8C005 /* ModernContentView.swift in Sources */,
+				9F4D3C33982DD404CC1659D4 /* OrpheusControlComponents.swift in Sources */,
+				C0113F682DEEB235D9FD6A1B /* OrpheusControlView.swift in Sources */,
+				C1003A08FF5568EDDE1CFF81 /* OrpheusControlViewModel.swift in Sources */,
+				808323C7AEB060B9DCC0FFD1 /* OrpheusMixerSection.swift in Sources */,
+				DD869DE8879018D08904C3EA /* OrpheusModels.swift in Sources */,
 				4290AEB2CC8EF9FA755D9615 /* OverviewView.swift in Sources */,
 				B2065E363F1AC2D5DB5EF5DA /* PhyDiagnostics.swift in Sources */,
 				5FF70D7B24D97BE26BEDFF8E /* ReadWriteView.swift in Sources */,

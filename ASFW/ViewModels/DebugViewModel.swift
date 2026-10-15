@@ -149,6 +149,14 @@ class DebugViewModel: ObservableObject {
         }
     }
 
+    var hasOrpheusDevice: Bool {
+        guard isConnected else { return false }
+        return BusInspectorNode.inventory(topology: topologyCache, devices: discoveredDevices).contains { item in
+            guard let device = item.device else { return false }
+            return ASFWDriverConnector.isOrpheus(vendorID: device.vendorId, modelName: device.modelName)
+        }
+    }
+
     func fetchTopology() {
         statusFetchQueue.async { [weak self] in
             guard let self = self else { return }

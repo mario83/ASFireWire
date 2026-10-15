@@ -60,6 +60,7 @@ struct ModernContentView: View {
         case audio = "Core Audio"
         case audioAnalyzer = "Audio Analyzer"
         case duet = "Duet"
+        case orpheus = "Orpheus"
         case diagnostics = "Driver Report"
         case diceReport = "DICE Report"
         case avcReport = "AV/C Report"
@@ -84,6 +85,7 @@ struct ModernContentView: View {
             case .audio: return "hifispeaker.fill"
             case .audioAnalyzer: return "waveform"
             case .duet: return "slider.horizontal.below.square.filled.and.square"
+            case .orpheus: return "dial.medium"
             case .diagnostics: return "heart.text.square"
             case .diceReport: return "doc.text.magnifyingglass"
             case .avcReport: return "doc.text.magnifyingglass"
@@ -93,7 +95,7 @@ struct ModernContentView: View {
         var group: SidebarGroup {
             switch self {
             case .overview: .general
-            case .busInspector, .avcUnits, .duet, .audioAnalyzer: .devices
+            case .busInspector, .avcUnits, .duet, .orpheus, .audioAnalyzer: .devices
             case .dvCapture: .video
             case .diagnostics, .diceReport, .avcReport: .reports
             case .logs, .loggingSettings: .support
@@ -111,6 +113,7 @@ struct ModernContentView: View {
             case .avcUnits, .avcCommands, .avcReport: return debugVM.hasAVCDevice
             case .diceReport: return debugVM.hasDICEDevice
             case .duet: return debugVM.hasDuetDevice
+            case .orpheus: return debugVM.hasOrpheusDevice
             case .audioAnalyzer, .audioTelemetry, .audioGeometry:
                 return !publishedAudioDevices.isEmpty
             default: return true
@@ -187,6 +190,8 @@ struct ModernContentView: View {
                     AudioAnalyzerView(devices: publishedAudioDevices, refresh: refreshPublishedAudioDevices)
                 case .duet:
                     DuetControlView(connector: debugVM.connector)
+                case .orpheus:
+                    OrpheusControlView(connector: debugVM.connector)
                 case .diagnostics:
                     DiagnosticsView(store: diagnosticsStore, showAdvancedTools: showAdvancedTools)
                 case .diceReport:
