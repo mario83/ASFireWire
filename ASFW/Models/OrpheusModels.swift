@@ -783,6 +783,9 @@ nonisolated struct OrpheusMeterSnapshot: Equatable {
     var digitalAsynchronous: Bool?
     var digitalUnlocked: Bool?
 
+    /// Legacy firmware's decaying meters are signed, so their full scale is 0x7FFF.
+    var legacyDecay = false
+
     static let analogMeterCount = 8
     /// Legacy firmware publishes meters from this index in the quadlet's upper half.
     static let legacyDecayStartIndex = 22
@@ -803,6 +806,7 @@ nonisolated struct OrpheusMeterSnapshot: Equatable {
         let bytes = [UInt8](data)
         let meterBytes = OrpheusWire.meterCount * 4
         guard bytes.count >= meterBytes else { return nil }
+        legacyDecay = !hasStatusQuadlet
 
         levels = (0..<OrpheusWire.meterCount).map { index in
             let base = index * 4
@@ -820,8 +824,40 @@ nonisolated struct OrpheusMeterSnapshot: Equatable {
         digitalUnlocked = bytes[meterBytes + 3] & 0x04 != 0
     }
 
+    func fullScale(at index: Int) -> UInt16 {
+        legacyDecay && index >= Self.legacyDecayStartIndex ? OrpheusMeterScale.signedFullScale : OrpheusMeterScale.unsignedFullScale
+    }
+
     static func label(for index: Int) -> String {
         index < analogMeterCount ? "AI \(index + 1)" : "#\(index + 1)"
+    }
+}
+
+/// Meter levels are linear peak amplitudes; the vendor meter spans 48 dB in
+/// 0.3 dB steps and latches its clip LED at 0xFF00.
+nonisolated enum OrpheusMeterScale {
+    static let unsignedFullScale: UInt16 = 0xFFFF
+    static let signedFullScale: UInt16 = 0x7FFF
+    static let clipThreshold: UInt16 = 0xFF00
+    static let floorDecibels = -48.0
+
+    static func decibels(_ level: UInt16, fullScale: UInt16 = unsignedFullScale) -> Double? {
+        guard level > 0 else { return nil }
+        return 20 * log10(Double(min(level, fullScale)) / Double(fullScale))
+    }
+
+    static func fraction(_ level: UInt16, fullScale: UInt16 = unsignedFullScale) -> Double {
+        guard let decibels = decibels(level, fullScale: fullScale) else { return 0 }
+        return min(max((decibels - floorDecibels) / -floorDecibels, 0), 1)
+    }
+
+    static func isClipping(_ level: UInt16, fullScale: UInt16 = unsignedFullScale) -> Bool {
+        fullScale == unsignedFullScale && level >= clipThreshold
+    }
+
+    static func format(_ level: UInt16, fullScale: UInt16 = unsignedFullScale) -> String {
+        guard let decibels = decibels(level, fullScale: fullScale) else { return "-∞" }
+        return String(format: "%.1f", decibels)
     }
 }
 

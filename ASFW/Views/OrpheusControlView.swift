@@ -449,7 +449,9 @@ struct OrpheusControlView: View {
                 if let meters = viewModel.meters {
                     LazyVGrid(columns: meterColumns, alignment: .leading, spacing: 4) {
                         ForEach(Array(meters.levels.enumerated()), id: \.offset) { index, level in
-                            OrpheusMeterBar(label: OrpheusMeterSnapshot.label(for: index), level: level)
+                            OrpheusMeterBar(label: OrpheusMeterSnapshot.label(for: index),
+                                            level: level,
+                                            fullScale: meters.fullScale(at: index))
                         }
                     }
                 } else {

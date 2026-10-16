@@ -389,6 +389,35 @@ struct OrpheusCodecTests {
         #expect(OrpheusSignalSourceCodec.parseStatus(hex("0C FF 1A 10 FF 88 60 08"), hasAdatInput: true) == .local)
     }
 
+    @Test func capturedMeterBlockUsesLowHalfAndStatusQuadlet() throws {
+        var block = [UInt8](repeating: 0, count: 204)
+        block[26...27] = [0x00, 0x18]
+        block[42...43] = [0x00, 0x10]
+        block[200...203] = [0xDC, 0x00, 0x55, 0x07]
+        let meters = try #require(OrpheusMeterSnapshot(data: Data(block), hasStatusQuadlet: true))
+        #expect(meters.levels[6] == 0x18)
+        #expect(meters.levels[10] == 0x10)
+        #expect(meters.masterVolume == Int16(-36 * 256))
+        #expect(meters.analogInputTypes == [1, 1, 1, 1])
+        #expect(meters.fullScale(at: 30) == OrpheusMeterScale.unsignedFullScale)
+
+        block[203] = 0
+        let unchanged = try #require(OrpheusMeterSnapshot(data: Data(block), hasStatusQuadlet: true))
+        #expect(unchanged.masterVolume == nil)
+    }
+
+    @Test func meterScaleIsLinearPeakOverFortyEightDecibels() throws {
+        let quiet = try #require(OrpheusMeterScale.decibels(0x18))
+        #expect(abs(quiet + 68.7) < 0.1)
+        #expect(OrpheusMeterScale.decibels(0) == nil)
+        #expect(OrpheusMeterScale.fraction(0xFFFF) == 1)
+        #expect(OrpheusMeterScale.fraction(0x18) == 0)
+        #expect(abs(OrpheusMeterScale.fraction(0x7FFF, fullScale: OrpheusMeterScale.signedFullScale) - 1) < 0.001)
+        #expect(OrpheusMeterScale.isClipping(0xFF00))
+        #expect(!OrpheusMeterScale.isClipping(0xFEFF))
+        #expect(OrpheusMeterScale.format(0) == "-∞")
+    }
+
     @Test func capturedMixBusResponseLinksDawPair() throws {
         var bus = [UInt8](repeating: 0, count: 76)
         bus[0...6] = [0x0C, 0x08, 0x00, 0x00, 0x11, 0x98, 0xEF]

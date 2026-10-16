@@ -101,6 +101,7 @@ struct OrpheusInputTypeBadge: View {
 struct OrpheusMeterBar: View {
     let label: String
     let level: UInt16
+    var fullScale: UInt16 = OrpheusMeterScale.unsignedFullScale
 
     var body: some View {
         HStack(spacing: 6) {
@@ -111,19 +112,20 @@ struct OrpheusMeterBar: View {
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.secondary.opacity(0.15))
                     Capsule()
-                        .fill(fraction > 0.9 ? Color.red : (fraction > 0.6 ? Color.yellow : Color.green))
+                        .fill(clipping ? Color.red : (fraction > 0.875 ? Color.yellow : Color.green))
                         .frame(width: geometry.size.width * fraction)
                 }
             }
             .frame(height: 6)
-            Text(String(format: "%04X", level))
+            Text(OrpheusMeterScale.format(level, fullScale: fullScale))
                 .font(.system(.caption2, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(clipping ? Color.red : Color.secondary)
                 .frame(width: 34, alignment: .trailing)
         }
     }
 
-    private var fraction: CGFloat { CGFloat(level) / CGFloat(UInt16.max) }
+    private var fraction: CGFloat { CGFloat(OrpheusMeterScale.fraction(level, fullScale: fullScale)) }
+    private var clipping: Bool { OrpheusMeterScale.isClipping(level, fullScale: fullScale) }
 }
 
 struct OrpheusStatusBadge: View {
