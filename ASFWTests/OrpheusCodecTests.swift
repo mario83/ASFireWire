@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import Testing
 @testable import ASFW
@@ -354,6 +355,96 @@ struct OrpheusCodecTests {
         #expect(scale.position(for: -5100) == 85)
     }
 
+    @Test func orpheusIdentityMatchesVendorModelGuidAndName() {
+        #expect(ASFWDriverConnector.isOrpheus(vendorID: 0x001198))
+        #expect(ASFWDriverConnector.isOrpheus(modelID: 0x010048))
+        #expect(ASFWDriverConnector.isOrpheus(modelName: "Orpheus"))
+        #expect(ASFWDriverConnector.isOrpheus(productName: "orpheus"))
+        #expect(ASFWDriverConnector.isOrpheus(guid: 0x0011980001000076))
+        #expect(!ASFWDriverConnector.isOrpheus(vendorID: 0x0003DB,
+                                              modelID: 0x01DDDD,
+                                              modelName: "Duet",
+                                              guid: 0x0003DB0000000001))
+    }
+
+    @Test func classicCaptionsMatchTheVendorFormatters() {
+        #expect(OrpheusClassicCaption.mixGain(.min) == "-INF")
+        #expect(OrpheusClassicCaption.mixGain(0) == "0.00")
+        #expect(OrpheusClassicCaption.mixGain(-1536) == "-6.00")
+        #expect(OrpheusClassicCaption.mixGain(-65) == "-0.25")
+        #expect(OrpheusClassicCaption.masterVolume(.min) == "-INF")
+        #expect(OrpheusClassicCaption.masterVolume(Int16(-36 * 256)) == "-36")
+        #expect(OrpheusClassicCaption.pan(0) == ">0<")
+        #expect(OrpheusClassicCaption.pan(-12) == "<12")
+        #expect(OrpheusClassicCaption.pan(7) == "7>")
+        #expect(OrpheusClassicCaption.parsePan(">0<") == 0)
+        #expect(OrpheusClassicCaption.parsePan("<12") == -12)
+        #expect(OrpheusClassicCaption.parsePan("7>") == 7)
+        #expect(OrpheusClassicCaption.parsePan("-8") == -8)
+        #expect(OrpheusClassicCaption.parsePan("20") == 20)
+        #expect(OrpheusClassicCaption.parsePan("99") == 20)
+        #expect(OrpheusClassicCaption.parsePan("  4  ") == 4)
+        #expect(OrpheusClassicCaption.parsePan("") == nil)
+    }
+
+    @Test func meterSetValueHoldsOneZeroThenDrops() {
+        var channel = OrpheusMeterChannelBallistics()
+        channel.setValue(0x8000)
+        #expect(channel.current == 0x8000)
+        channel.setValue(0)
+        #expect(channel.current == 0)
+
+        channel.setValue(0x8000)
+        channel.setValue(0x8000)
+        channel.setValue(0)
+        #expect(channel.current == 0x8000)
+        channel.setValue(0)
+        #expect(channel.current == 0)
+    }
+
+    @Test func meterSetValueFollowsNonZeroImmediately() {
+        var channel = OrpheusMeterChannelBallistics()
+        channel.setValue(0x8000)
+        channel.setValue(0x1000)
+        #expect(channel.current == 0x1000)
+    }
+
+    @Test func meterClipHoldsTwelveTicks() {
+        var channel = OrpheusMeterChannelBallistics()
+        channel.setValue(0xFF00)
+        #expect(channel.clipTicks == 12)
+        for _ in 0..<11 { channel.setValue(0x1000) }
+        #expect(channel.clipTicks == 1)
+        channel.setValue(0x1000)
+        #expect(channel.clipTicks == 0)
+    }
+
+    @Test func meterLegacyDecayUsesVendorCoefficient() {
+        var channel = OrpheusMeterChannelBallistics()
+        channel.setValueWithDecay(0x7FFF)
+        #expect(channel.current == 0x7FFF)
+        channel.setValueWithDecay(0)
+        let expected = UInt16((UInt32(0x7FFF) * OrpheusMeterChannelBallistics.decayMultiplier) >> 16)
+        #expect(channel.current == expected)
+        #expect(expected == 28538)
+    }
+
+    @Test func classicLayoutConvertsAppKitRects() {
+        let box = OrpheusClassicBox(8, 49, 20, 199)
+        let rect = box.swiftRect(parentHeight: 358)
+        #expect(rect.origin.x == 8)
+        #expect(rect.origin.y == 110)
+        #expect(rect.width == 20)
+        #expect(rect.height == 199)
+        #expect(OrpheusClassicLayout.columnX(3) == 146)
+        #expect(OrpheusClassicLayout.analogMeterX(2) == 123)
+        let linked = OrpheusClassicLayout.mixGainBox(input: 0, linked: true)
+        #expect(linked.x == 21)
+        #expect(OrpheusClassicLayout.mixMeterBox(input: 0, linked: true).x == 41)
+        #expect(OrpheusClassicLayout.mixMeterBox(input: 1, linked: true).x == 61)
+        #expect(OrpheusClassicLayout.tabs.count == 10)
+    }
+
     @Test func choiceListsKeepUnknownDeviceValues() {
         let choices = OrpheusChoices.including(9, in: OrpheusChoices.clockOutput)
         #expect(choices.count == 4)
@@ -366,6 +457,10 @@ struct OrpheusCodecTests {
         #expect(OrpheusChoices.brightnessLabel(8) == "High")
         #expect(OrpheusChoices.brightnessLabel(4) == "Low")
         #expect(OrpheusChoices.brightnessLabel(1) == "Min")
+        #expect(OrpheusChoices.displayedLabel(2, in: OrpheusChoices.digitalSampleRate, classic: true) == "48k")
+        #expect(OrpheusChoices.displayedLabel(1, in: OrpheusChoices.sampleRateConverter, classic: true) == "DI")
+        #expect(OrpheusSyncSource.local.classicLabel == "Local")
+        #expect(OrpheusSyncSource.wordClock.classicLabel == "WCK")
     }
 
     // MARK: - Captured Orpheus responses (firmware 1.6)

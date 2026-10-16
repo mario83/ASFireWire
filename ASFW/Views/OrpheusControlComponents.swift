@@ -31,8 +31,8 @@ struct OrpheusSteppedSlider: View {
                                       let value = scale.raw(at: Int(position.rounded()))
                                       if value != raw { onChange(value) }
                                   }),
-                   in: 0...Double(scale.maxPosition),
-                   step: 1)
+                   in: 0...Double(scale.maxPosition))
+                .labelsHidden()
             Text(OrpheusLevel.format(raw, fractionDigits: 1))
                 .font(.system(.caption, design: .monospaced))
                 .frame(width: 72, alignment: .trailing)
@@ -122,6 +122,7 @@ struct OrpheusMeterBar: View {
     let label: String
     let level: UInt16
     var fullScale: UInt16 = OrpheusMeterScale.unsignedFullScale
+    var clip: Bool? = nil
 
     var body: some View {
         HStack(spacing: 6) {
@@ -145,7 +146,7 @@ struct OrpheusMeterBar: View {
     }
 
     private var fraction: CGFloat { CGFloat(OrpheusMeterScale.fraction(level, fullScale: fullScale)) }
-    private var clipping: Bool { OrpheusMeterScale.isClipping(level, fullScale: fullScale) }
+    private var clipping: Bool { clip ?? OrpheusMeterScale.isClipping(level, fullScale: fullScale) }
 }
 
 struct OrpheusStatusBadge: View {

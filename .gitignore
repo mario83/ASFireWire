@@ -109,6 +109,9 @@ __pycache__/
 /mcp_log_query_latest.json
 /captures/**/*.json
 
+# Prism Sound Orpheus bitmaps — local only until a redistribution license exists.
+ASFW/Resources/OrpheusVendor/
+
 # Local development projects and editor settings
 /ADKVirtualAudioLab/
 /.vscode/

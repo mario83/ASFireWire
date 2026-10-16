@@ -187,6 +187,9 @@ targets:
     sources:
       # Includes the AV/C report model, formatter, store and view; also AnalyzerRenderSubmission.swift, AnalyzerDisplaySmoother.swift, shared Metal plots, Views/AnalyzerPanelCanvas.swift, AnalyzerGlyphAtlas.swift, AnalyzerLivePanel.swift, MetalSpectrogramView.swift, SpectrogramTimeline.swift, SpectrumVisualization.swift, SpectrumFFTLayout.swift, WaterfallProjection.swift, AnalyzerTimingStatistics.swift, AnalyzerReadoutBatch.swift, AnalyzerKernelTiming.swift, KWeightBlockPipeline.swift, KWeightBlocks.metal, and analyzer shaders.
       - path: ASFW
+        excludes:
+          - "Resources/OrpheusVendor"
+          - "Resources/OrpheusVendor/**"
     dependencies:
       - target: ASFWDriver
         embed: true

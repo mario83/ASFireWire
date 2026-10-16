@@ -11,27 +11,57 @@ nonisolated struct OrpheusDeviceInfo: Equatable {
 
 extension ASFWDriverConnector {
     static let orpheusVendorID: UInt32 = 0x001198
+    /// Config-ROM / audio-nub model ID observed on the Prism Sound Orpheus (`ASFWModelID` = 65608).
+    static let orpheusModelID: UInt32 = 0x010048
 
     private static let orpheusCommandTimeoutMs: UInt32 = 2_000
-    private static let orpheusReadTimeout: TimeInterval = 0.5
+    private static let orpheusReadTimeout: TimeInterval = 0.12
 
     // MARK: - Device Selection
 
-    static func isOrpheus(vendorID: UInt32, modelName: String?) -> Bool {
-        vendorID == orpheusVendorID || (modelName?.lowercased().contains("orpheus") ?? false)
+    static func isOrpheus(vendorID: UInt32 = 0,
+                          modelID: UInt32 = 0,
+                          modelName: String? = nil,
+                          guid: UInt64? = nil,
+                          productName: String? = nil) -> Bool {
+        if vendorID == orpheusVendorID { return true }
+        if modelID == orpheusModelID { return true }
+        if modelName?.localizedCaseInsensitiveContains("orpheus") == true { return true }
+        if productName?.localizedCaseInsensitiveContains("orpheus") == true { return true }
+        if let guid, guid >> 40 == UInt64(orpheusVendorID) { return true }
+        return false
     }
 
     func findOrpheusDevice() -> OrpheusDeviceInfo? {
         let devices = getDiscoveredDevices() ?? []
-        let unitGUID = getAVCUnits()?.first(where: { $0.vendorID == Self.orpheusVendorID })?.guid
-        let device = devices.first(where: { $0.guid == unitGUID })
-            ?? devices.first(where: { Self.isOrpheus(vendorID: $0.vendorId, modelName: $0.modelName) })
+        let units = getAVCUnits() ?? []
+        let unit = units.first {
+            Self.isOrpheus(vendorID: $0.vendorID, modelID: $0.modelID, guid: $0.guid)
+        }
+        let device = devices.first { candidate in
+            if let unit, candidate.guid == unit.guid { return true }
+            if Self.isOrpheus(vendorID: candidate.vendorId,
+                              modelID: candidate.modelId,
+                              modelName: candidate.modelName,
+                              guid: candidate.guid) {
+                return true
+            }
+            return candidate.units.contains {
+                Self.isOrpheus(modelName: $0.productName, productName: $0.productName)
+            }
+        }
 
-        guard let guid = unitGUID ?? device?.guid else { return nil }
+        guard let guid = unit?.guid ?? device?.guid else { return nil }
+        let modelName: String
+        if let name = device?.modelName, !name.isEmpty {
+            modelName = name
+        } else {
+            modelName = "Orpheus"
+        }
         return OrpheusDeviceInfo(guid: guid,
-                                 nodeID: device?.nodeId,
+                                 nodeID: device?.nodeId ?? unit.map { UInt8(truncatingIfNeeded: $0.nodeID) },
                                  generation: device?.generation,
-                                 modelName: device?.modelName ?? "Orpheus")
+                                 modelName: modelName)
     }
 
     // MARK: - STATUS Reads
@@ -128,7 +158,8 @@ extension ASFWDriverConnector {
         guard let data = orpheusSyncRead(node: UInt16(0xFFC0) | UInt16(nodeID),
                                          addressHigh: OrpheusWire.meterAddressHigh,
                                          addressLow: OrpheusWire.meterAddressLow,
-                                         length: length)
+                                         length: length,
+                                         block: true)
         else {
             return nil
         }
@@ -149,18 +180,24 @@ extension ASFWDriverConnector {
         return OrpheusCodec.validatedResponse(response, command: command, isControl: false, minimumLength: minimumLength)
     }
 
-    private func orpheusSyncRead(node: UInt16, addressHigh: UInt16, addressLow: UInt32, length: UInt32) -> Data? {
-        guard let handle = asyncRead(destinationID: node,
-                                     addressHigh: addressHigh,
-                                     addressLow: addressLow,
-                                     length: length) else { return nil }
+    private func orpheusSyncRead(node: UInt16,
+                                addressHigh: UInt16,
+                                addressLow: UInt32,
+                                length: UInt32,
+                                block: Bool = false) -> Data? {
+        let handle = block
+            ? asyncBlockRead(destinationID: node, addressHigh: addressHigh, addressLow: addressLow, length: length, quiet: true)
+            : asyncRead(destinationID: node, addressHigh: addressHigh, addressLow: addressLow, length: length)
+        guard let handle else { return nil }
         let deadline = Date().addingTimeInterval(Self.orpheusReadTimeout)
         while Date() < deadline {
-            if let result = getTransactionResult(handle: handle, initialPayloadCapacity: Int(length) + 128) {
+            if let result = getTransactionResult(handle: handle,
+                                                 initialPayloadCapacity: Int(length) + 128,
+                                                 quiet: true) {
                 guard result.status == 0, result.responseCode == 0 else { return nil }
                 return result.payload
             }
-            Thread.sleep(forTimeInterval: 0.005)
+            Thread.sleep(forTimeInterval: 0.001)
         }
         return nil
     }

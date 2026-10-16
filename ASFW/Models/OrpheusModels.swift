@@ -322,7 +322,14 @@ nonisolated struct OrpheusSteppedScale {
 nonisolated struct OrpheusChoice: Identifiable, Hashable {
     let value: UInt8
     let label: String
+    let shortLabel: String
     var id: UInt8 { value }
+
+    init(value: UInt8, label: String, shortLabel: String? = nil) {
+        self.value = value
+        self.label = label
+        self.shortLabel = shortLabel ?? label
+    }
 }
 
 nonisolated enum OrpheusChoices {
@@ -333,14 +340,14 @@ nonisolated enum OrpheusChoices {
 
     static let sampleRateConverter = [
         OrpheusChoice(value: 0, label: "Off"),
-        OrpheusChoice(value: 1, label: "Digital input"),
-        OrpheusChoice(value: 2, label: "Digital output"),
+        OrpheusChoice(value: 1, label: "Digital input", shortLabel: "DI"),
+        OrpheusChoice(value: 2, label: "Digital output", shortLabel: "DO"),
     ]
 
     static let clockOutput = [
-        OrpheusChoice(value: 0, label: "fs (word clock)"),
-        OrpheusChoice(value: 1, label: "Base clock"),
-        OrpheusChoice(value: 2, label: "256× clock"),
+        OrpheusChoice(value: 0, label: "fs (word clock)", shortLabel: "fs"),
+        OrpheusChoice(value: 1, label: "Base clock", shortLabel: "base"),
+        OrpheusChoice(value: 2, label: "256× clock", shortLabel: "256x"),
     ]
 
     static func adatModes(firmware: OrpheusFirmwareVersion?) -> [OrpheusChoice] {
@@ -348,7 +355,7 @@ nonisolated enum OrpheusChoices {
             OrpheusChoice(value: 0, label: "None"),
             OrpheusChoice(value: 1, label: "Send"),
             OrpheusChoice(value: 2, label: "Return"),
-            OrpheusChoice(value: 3, label: "Send/Return"),
+            OrpheusChoice(value: 3, label: "Send/Return", shortLabel: "S/R"),
         ]
         if firmware?.supportsAdatDirect ?? true {
             choices.append(OrpheusChoice(value: 4, label: "Direct"))
@@ -364,7 +371,7 @@ nonisolated enum OrpheusChoices {
     static func filters(channel: Int) -> [OrpheusChoice] {
         var choices = [
             OrpheusChoice(value: 0, label: "Flat"),
-            OrpheusChoice(value: 1, label: "80 Hz"),
+            OrpheusChoice(value: 1, label: "80 Hz", shortLabel: "80Hz"),
         ]
         if channel < 2 {
             choices.append(OrpheusChoice(value: 2, label: "RIAA"))
@@ -373,43 +380,49 @@ nonisolated enum OrpheusChoices {
     }
 
     static let digitalSampleRate = [
-        OrpheusChoice(value: 1, label: "44.1 kHz"),
-        OrpheusChoice(value: 2, label: "48 kHz"),
-        OrpheusChoice(value: 3, label: "88.2 kHz"),
-        OrpheusChoice(value: 4, label: "96 kHz"),
-        OrpheusChoice(value: 5, label: "176.4 kHz"),
-        OrpheusChoice(value: 6, label: "192 kHz"),
+        OrpheusChoice(value: 1, label: "44.1 kHz", shortLabel: "44.1k"),
+        OrpheusChoice(value: 2, label: "48 kHz", shortLabel: "48k"),
+        OrpheusChoice(value: 3, label: "88.2 kHz", shortLabel: "88.2k"),
+        OrpheusChoice(value: 4, label: "96 kHz", shortLabel: "96k"),
+        OrpheusChoice(value: 5, label: "176.4 kHz", shortLabel: "176k"),
+        OrpheusChoice(value: 6, label: "192 kHz", shortLabel: "192k"),
     ]
 
     static let digitalBitDepth = [
-        OrpheusChoice(value: 24, label: "24 bit"),
-        OrpheusChoice(value: 16, label: "16 bit"),
-        OrpheusChoice(value: 0, label: "16 bit SNS1"),
-        OrpheusChoice(value: 1, label: "16 bit SNS2"),
-        OrpheusChoice(value: 2, label: "16 bit SNS3"),
-        OrpheusChoice(value: 3, label: "16 bit SNS4"),
+        OrpheusChoice(value: 24, label: "24 bit", shortLabel: "24bit"),
+        OrpheusChoice(value: 16, label: "16 bit", shortLabel: "16bit"),
+        OrpheusChoice(value: 0, label: "16 bit SNS1", shortLabel: "SNS1"),
+        OrpheusChoice(value: 1, label: "16 bit SNS2", shortLabel: "SNS2"),
+        OrpheusChoice(value: 2, label: "16 bit SNS3", shortLabel: "SNS3"),
+        OrpheusChoice(value: 3, label: "16 bit SNS4", shortLabel: "SNS4"),
     ]
 
     static let digitalSync = [
         OrpheusChoice(value: 0, label: "Local"),
-        OrpheusChoice(value: 1, label: "Word clock"),
-        OrpheusChoice(value: 2, label: "Digital input"),
+        OrpheusChoice(value: 1, label: "Word clock", shortLabel: "WCK"),
+        OrpheusChoice(value: 2, label: "Digital input", shortLabel: "DI"),
     ]
 
     static let digitalInputType = [
-        OrpheusChoice(value: 0, label: "S/PDIF (coaxial)"),
-        OrpheusChoice(value: 1, label: "TOSLINK (optical)"),
+        OrpheusChoice(value: 0, label: "S/PDIF (coaxial)", shortLabel: "S/PDIF"),
+        OrpheusChoice(value: 1, label: "TOSLINK (optical)", shortLabel: "TOS"),
     ]
 
     static let digitalChannelStatus = [
-        OrpheusChoice(value: 0, label: "S/PDIF (consumer)"),
-        OrpheusChoice(value: 1, label: "AES3 (professional)"),
+        OrpheusChoice(value: 0, label: "S/PDIF (consumer)", shortLabel: "SPDIF"),
+        OrpheusChoice(value: 1, label: "AES3 (professional)", shortLabel: "AES3"),
     ]
 
     /// Ensures a picker can always display the value reported by the device.
     static func including(_ current: UInt8?, in choices: [OrpheusChoice]) -> [OrpheusChoice] {
         guard let current, !choices.contains(where: { $0.value == current }) else { return choices }
         return choices + [OrpheusChoice(value: current, label: "Unknown (\(current))")]
+    }
+
+    static func displayedLabel(_ current: UInt8, in choices: [OrpheusChoice], classic: Bool = false) -> String {
+        let items = including(current, in: choices)
+        guard let choice = items.first(where: { $0.value == current }) else { return "" }
+        return classic ? choice.shortLabel : choice.label
     }
 
     static func brightnessLabel(_ value: UInt8) -> String {
@@ -755,6 +768,17 @@ nonisolated enum OrpheusSyncSource: UInt8, CaseIterable, Identifiable {
         }
     }
 
+    var classicLabel: String {
+        switch self {
+        case .csp: return "CSP"
+        case .firewire: return "FW"
+        case .local: return "Local"
+        case .digitalInput: return "DI"
+        case .adat: return "ADAT"
+        case .wordClock: return "WCK"
+        }
+    }
+
     /// The vendor app lists FireWire only while it is the active source.
     static func selectable(current: OrpheusSyncSource?, hasAdatInput: Bool) -> [OrpheusSyncSource] {
         allCases.filter { source in
@@ -919,6 +943,74 @@ nonisolated enum OrpheusMeterScale {
     static func format(_ level: UInt16, fullScale: UInt16 = unsignedFullScale) -> String {
         guard let decibels = decibels(level, fullScale: fullScale) else { return "-∞" }
         return String(format: "%.1f", decibels)
+    }
+
+    static func level(fromDecibels decibels: Double, fullScale: UInt16 = unsignedFullScale) -> UInt16 {
+        guard decibels > floorDecibels else { return 0 }
+        if decibels >= 0 { return fullScale }
+        let linear = pow(10, decibels / 20) * Double(fullScale)
+        return UInt16(min(max(linear.rounded(), 0), Double(fullScale)))
+    }
+}
+
+/// Per-channel ballistics from Orpheus.app 1.10 `Level::SetValue` /
+/// `Level::SetValueWithDecay`. Firmware ≥ 1.3 uses a one-sample hold only when
+/// the new reading is zero, plus a 12-tick clip LED. Older firmware decays
+/// meters 22–49 with `(level * 0xDEF7) >> 16`.
+nonisolated struct OrpheusMeterChannelBallistics: Equatable {
+    static let clipHoldTicks: UInt8 = 12
+    static let decayMultiplier: UInt32 = 0xDEF7
+
+    var current: UInt16 = 0
+    var previous: UInt16 = 0
+    var clipTicks: UInt8 = 0
+
+    mutating func setValue(_ sample: UInt16) {
+        if sample == 0 {
+            if current != 0 {
+                if previous == 0 {
+                    current = 0
+                } else {
+                    previous = 0
+                }
+            }
+        } else {
+            previous = current
+            current = sample
+        }
+        if current >= OrpheusMeterScale.clipThreshold {
+            clipTicks = Self.clipHoldTicks
+        } else if clipTicks > 0 {
+            clipTicks -= 1
+        }
+    }
+
+    mutating func setValueWithDecay(_ sample: UInt16) {
+        let decayed = UInt32(current) * Self.decayMultiplier >> 16
+        current = UInt16(max(UInt32(sample), decayed))
+        if current >= OrpheusMeterScale.signedFullScale - 0xFF {
+            clipTicks = Self.clipHoldTicks
+        } else if clipTicks > 0 {
+            clipTicks -= 1
+        }
+    }
+}
+
+nonisolated struct OrpheusMeterBallistics {
+    private var channels: [OrpheusMeterChannelBallistics] = []
+
+    mutating func tick(levels: [UInt16], legacyDecay: Bool = false) -> (levels: [UInt16], clips: [Bool]) {
+        if channels.count != levels.count {
+            channels = Array(repeating: OrpheusMeterChannelBallistics(), count: levels.count)
+        }
+        for index in levels.indices {
+            if legacyDecay && index >= OrpheusMeterSnapshot.legacyDecayStartIndex {
+                channels[index].setValueWithDecay(levels[index])
+            } else {
+                channels[index].setValue(levels[index])
+            }
+        }
+        return (channels.map(\.current), channels.map { $0.clipTicks > 0 })
     }
 }
 

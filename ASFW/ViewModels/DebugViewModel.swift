@@ -151,9 +151,22 @@ class DebugViewModel: ObservableObject {
 
     var hasOrpheusDevice: Bool {
         guard isConnected else { return false }
+        if avcUnits.contains(where: {
+            ASFWDriverConnector.isOrpheus(vendorID: $0.vendorID, modelID: $0.modelID, guid: $0.guid)
+        }) {
+            return true
+        }
+        if discoveredDevices.contains(where: {
+            ASFWDriverConnector.isOrpheus(vendorID: $0.vendorId, modelID: $0.modelId, modelName: $0.modelName, guid: $0.guid)
+        }) {
+            return true
+        }
         return BusInspectorNode.inventory(topology: topologyCache, devices: discoveredDevices).contains { item in
             guard let device = item.device else { return false }
-            return ASFWDriverConnector.isOrpheus(vendorID: device.vendorId, modelName: device.modelName)
+            return ASFWDriverConnector.isOrpheus(vendorID: device.vendorId,
+                                                modelID: device.modelId,
+                                                modelName: device.modelName,
+                                                guid: device.guid)
         }
     }
 

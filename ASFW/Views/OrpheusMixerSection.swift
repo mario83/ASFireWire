@@ -10,16 +10,18 @@ struct OrpheusMixerSection: View {
     var body: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
+                HStack(spacing: 10) {
+                    Text("Bus")
+                        .font(.subheadline)
+                        .frame(minWidth: 36, alignment: .leading)
                     Picker("Bus", selection: $viewModel.selectedBus) {
                         ForEach(0..<OrpheusWire.mixBusCount, id: \.self) { bus in
                             Text(OrpheusMix.busNames[bus]).tag(bus)
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 560)
-
-                    Spacer()
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity)
 
                     Button {
                         viewModel.refreshMixBus(bus)
@@ -59,10 +61,12 @@ struct OrpheusMixerSection: View {
                                  raw: busState.gain,
                                  scale: .mixGain) { viewModel.setBusGain(bus: bus, gain: $0) }
 
-            HStack(spacing: 20) {
+            HStack(spacing: 12) {
                 Toggle("Mute bus", isOn: Binding(get: { busState.mute },
                                                  set: { viewModel.setBusMute(bus: bus, muted: $0) }))
 
+                Text("Source")
+                    .font(.subheadline)
                 if isHeadphoneBus {
                     Picker("Source", selection: Binding(get: { viewModel.headphoneRouting },
                                                         set: { viewModel.setHeadphoneRouting($0) })) {
@@ -70,7 +74,9 @@ struct OrpheusMixerSection: View {
                             Text(routing.label).tag(routing)
                         }
                     }
-                    .frame(maxWidth: 300)
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(maxWidth: 300, alignment: .leading)
                 } else {
                     Picker("Source", selection: Binding(get: { busState.defeated },
                                                         set: { viewModel.setBusDefeat(bus: bus, defeated: $0) })) {
@@ -78,9 +84,12 @@ struct OrpheusMixerSection: View {
                         Text("DAW").tag(true)
                     }
                     .pickerStyle(.segmented)
+                    .labelsHidden()
                     .frame(maxWidth: 220)
                 }
+                Spacer(minLength: 0)
             }
+            .frame(minHeight: 24)
         }
     }
 
@@ -101,8 +110,9 @@ struct OrpheusMixerSection: View {
                     .foregroundStyle(.secondary)
                 Slider(value: Binding(get: { Double(state.position) },
                                       set: { viewModel.setInputPosition(bus: bus, input: input, position: Int8($0.rounded())) }),
-                       in: Double(OrpheusMix.positionRange.lowerBound)...Double(OrpheusMix.positionRange.upperBound),
-                       step: 1)
+                       in: Double(OrpheusMix.positionRange.lowerBound)...Double(OrpheusMix.positionRange.upperBound))
+                    .controlSize(.mini)
+                    .labelsHidden()
                     .frame(width: 64)
             }
 

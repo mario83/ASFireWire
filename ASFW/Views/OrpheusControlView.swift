@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OrpheusControlView: View {
     @StateObject private var viewModel: OrpheusControlViewModel
+    @AppStorage("orpheus.classicSkin") private var classicSkin = false
 
     private let analogColumns = Array(repeating: GridItem(.flexible(minimum: 180), spacing: 12, alignment: .top), count: 4)
     private let meterColumns = Array(repeating: GridItem(.flexible(minimum: 160), spacing: 16), count: 3)
@@ -11,6 +12,80 @@ struct OrpheusControlView: View {
     }
 
     var body: some View {
+        Group {
+            if classicSkin {
+                VStack(spacing: 0) {
+                    classicToolbar
+                    ZStack {
+                        OrpheusClassicView(viewModel: viewModel)
+                        if !viewModel.isConnected || viewModel.device == nil {
+                            classicUnavailableOverlay
+                        }
+                    }
+                }
+            } else {
+                modernBody
+            }
+        }
+        .navigationTitle("Orpheus")
+        .onAppear {
+            viewModel.writesEnabled = true
+            viewModel.metersLive = true
+            viewModel.refresh()
+        }
+        .onDisappear { viewModel.metersLive = false }
+        .alert(phantomAlertTitle, isPresented: phantomAlertPresented) {
+            Button("Enable 48 V", role: .destructive) { viewModel.confirmPendingPhantom() }
+            Button("Cancel", role: .cancel) { viewModel.pendingPhantomChannel = nil }
+        } message: {
+            Text("Never apply phantom power to ribbon microphones or to sources that are not designed for it.")
+        }
+    }
+
+    private var classicToolbar: some View {
+        HStack(spacing: 16) {
+            Toggle("Classic panel", isOn: $classicSkin)
+            if viewModel.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            Text(classicStatusText)
+                .font(.caption)
+                .foregroundStyle(viewModel.device == nil ? .orange : .secondary)
+                .lineLimit(1)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
+    private var classicStatusText: String {
+        if !viewModel.isConnected { return "Driver not connected" }
+        if let device = viewModel.device { return "GUID \(device.guidHex)" }
+        return viewModel.isLoading ? "Searching for Orpheus…" : (viewModel.errorMessage ?? "No Orpheus selected")
+    }
+
+    private var classicUnavailableOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.55)
+            VStack(spacing: 10) {
+                Text(!viewModel.isConnected ? "Driver Not Connected" : "No Prism Sound Orpheus Found")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Text(!viewModel.isConnected
+                     ? "Connect to ASFWDriver to control the Orpheus."
+                     : "The audio device is visible, but this panel has not selected it yet. The panel retries automatically after the bus settles.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 420)
+            }
+            .padding(24)
+        }
+        .allowsHitTesting(true)
+    }
+
+    private var modernBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 headerSection
@@ -20,23 +95,26 @@ struct OrpheusControlView: View {
                               message: "Connect to ASFWDriver to control the Orpheus.")
                 } else if viewModel.device == nil {
                     stateCard(title: "No Prism Sound Orpheus Found",
-                              message: "Connect and power the Orpheus, then refresh this page.")
+                              message: "Connect and power the Orpheus. The panel retries automatically.")
                 } else {
                     if let error = viewModel.errorMessage {
                         errorLabel(error)
                     }
 
-                    Group {
-                        unitSection
+                    unitSection
+                    pairedCards {
                         frontPanelSection
-                        clockSection
-                        analogInputSection
-                        analogOutputSection
+                    } right: {
                         headphoneSection
-                        digitalSection
-                        OrpheusMixerSection(viewModel: viewModel)
                     }
-                    .disabled(!viewModel.writesEnabled)
+                    pairedCards {
+                        clockSection
+                    } right: {
+                        digitalSection
+                    }
+                    analogInputSection
+                    analogOutputSection
+                    OrpheusMixerSection(viewModel: viewModel)
 
                     meterSection
                     writeLogSection
@@ -49,19 +127,6 @@ struct OrpheusControlView: View {
             .frame(maxWidth: 980, alignment: .leading)
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .topLeading)
-        }
-        .navigationTitle("Orpheus")
-        .onAppear {
-            viewModel.refresh()
-        }
-        .onDisappear {
-            viewModel.metersLive = false
-        }
-        .alert(phantomAlertTitle, isPresented: phantomAlertPresented) {
-            Button("Enable 48 V", role: .destructive) { viewModel.confirmPendingPhantom() }
-            Button("Cancel", role: .cancel) { viewModel.pendingPhantomChannel = nil }
-        } message: {
-            Text("Never apply phantom power to ribbon microphones or to sources that are not designed for it.")
         }
     }
 
@@ -101,28 +166,16 @@ struct OrpheusControlView: View {
                         ProgressView()
                             .controlSize(.small)
                     }
-
-                    Button {
-                        viewModel.refresh()
-                    } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
-                    }
-                    .disabled(viewModel.isLoading)
                 }
 
                 if viewModel.device != nil {
                     Divider()
                     HStack(spacing: 20) {
-                        Toggle("Enable writes", isOn: $viewModel.writesEnabled)
-                            .toggleStyle(.switch)
                         Toggle("Identify", isOn: Binding(get: { viewModel.unit.identify },
                                                          set: { viewModel.setIdentify($0) }))
-                            .disabled(!viewModel.writesEnabled)
+                        Toggle("Classic panel", isOn: $classicSkin)
                         Spacer()
                     }
-                    Text("The control protocol was reconstructed from the Prism Sound app and is not yet verified on hardware. Settings are read-only until writes are enabled.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
             }
         } label: {
@@ -177,25 +230,24 @@ struct OrpheusControlView: View {
     private var frontPanelSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
+                Text("Meters show")
                 OrpheusChoicePicker(title: "Meters show",
                                     choices: OrpheusChoices.frontPanelMeter,
                                     selection: viewModel.unit.frontPanelMeterMode) { viewModel.setFrontPanelMeterMode($0) }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 360)
+                    .labelsHidden()
 
-                HStack(spacing: 10) {
-                    Text("Brightness")
-                        .frame(width: 110, alignment: .leading)
+                labeledRow("Brightness") {
                     Slider(value: Binding(get: { Double(viewModel.unit.meterBrightness) },
                                           set: { viewModel.setMeterBrightness(UInt8($0.rounded())) }),
-                           in: 1...15,
-                           step: 1)
-                        .frame(maxWidth: 240)
+                           in: 1...15)
+                        .labelsHidden()
                     Text("\(OrpheusChoices.brightnessLabel(viewModel.unit.meterBrightness)) (\(viewModel.unit.meterBrightness))")
                         .font(.system(.caption, design: .monospaced))
                 }
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } label: {
             Label("Front Panel", systemImage: "light.max")
                 .font(.headline)
@@ -207,38 +259,43 @@ struct OrpheusControlView: View {
     private var clockSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
-                Picker("Sync source", selection: Binding(get: { viewModel.syncSource },
-                                                         set: { if let source = $0 { viewModel.setSyncSource(source) } })) {
-                    if viewModel.syncSource == nil {
-                        Text("Unknown").tag(OrpheusSyncSource?.none)
+                labeledRow("Sync source") {
+                    Picker("Sync source", selection: Binding(get: { viewModel.syncSource },
+                                                             set: { if let source = $0 { viewModel.setSyncSource(source) } })) {
+                        if viewModel.syncSource == nil {
+                            Text("Unknown").tag(OrpheusSyncSource?.none)
+                        }
+                        ForEach(OrpheusSyncSource.selectable(current: viewModel.syncSource,
+                                                             hasAdatInput: viewModel.hasAdatInput)) { source in
+                            Text(source.label).tag(Optional(source))
+                        }
                     }
-                    ForEach(OrpheusSyncSource.selectable(current: viewModel.syncSource,
-                                                         hasAdatInput: viewModel.hasAdatInput)) { source in
-                        Text(source.label).tag(Optional(source))
-                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
                 }
-                .frame(maxWidth: 360)
 
-                OrpheusChoicePicker(title: "ADAT",
-                                    choices: OrpheusChoices.adatModes(firmware: viewModel.firmware),
-                                    selection: viewModel.unit.adatMode) { viewModel.setAdatMode($0) }
-                    .frame(maxWidth: 360)
+                labeledChoice("ADAT",
+                              choices: OrpheusChoices.adatModes(firmware: viewModel.firmware),
+                              selection: viewModel.unit.adatMode,
+                              onSelect: viewModel.setAdatMode)
 
-                OrpheusChoicePicker(title: "Sample rate converter",
-                                    choices: OrpheusChoices.sampleRateConverter,
-                                    selection: viewModel.unit.sampleRateConverter) { viewModel.setSampleRateConverter($0) }
-                    .frame(maxWidth: 360)
+                labeledChoice("Sample rate converter",
+                              choices: OrpheusChoices.sampleRateConverter,
+                              selection: viewModel.unit.sampleRateConverter,
+                              onSelect: viewModel.setSampleRateConverter)
 
-                OrpheusChoicePicker(title: "Word clock output",
-                                    choices: OrpheusChoices.clockOutput,
-                                    selection: viewModel.unit.clockOutput) { viewModel.setClockOutput($0) }
-                    .frame(maxWidth: 360)
+                labeledChoice("Word clock output",
+                              choices: OrpheusChoices.clockOutput,
+                              selection: viewModel.unit.clockOutput,
+                              onSelect: viewModel.setClockOutput)
 
                 Text("ASFW streams with the Orpheus as clock master or slave; changing the sync source while audio is running can cause dropouts.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } label: {
             Label("Clock & Sync", systemImage: "metronome")
                 .font(.headline)
@@ -334,8 +391,8 @@ struct OrpheusControlView: View {
             }
             Slider(value: Binding(get: { Double(value) },
                                   set: { onChange(UInt8($0.rounded())) }),
-                   in: Double(OrpheusAnalogChannelState.gainRange.lowerBound)...Double(OrpheusAnalogChannelState.gainRange.upperBound),
-                   step: 1)
+                   in: Double(OrpheusAnalogChannelState.gainRange.lowerBound)...Double(OrpheusAnalogChannelState.gainRange.upperBound))
+                .labelsHidden()
         }
     }
 
@@ -363,17 +420,21 @@ struct OrpheusControlView: View {
 
     private var headphoneSection: some View {
         GroupBox {
-            VStack(alignment: .leading, spacing: 8) {
-                Picker("Headphone source", selection: Binding(get: { viewModel.headphoneRouting },
-                                                              set: { viewModel.setHeadphoneRouting($0) })) {
-                    ForEach(OrpheusHeadphones.routings, id: \.self) { routing in
-                        Text(routing.label).tag(routing)
+            VStack(alignment: .leading, spacing: 12) {
+                labeledRow("Headphone source") {
+                    Picker("Headphone source", selection: Binding(get: { viewModel.headphoneRouting },
+                                                                  set: { viewModel.setHeadphoneRouting($0) })) {
+                        ForEach(OrpheusHeadphones.routings, id: \.self) { routing in
+                            Text(routing.label).tag(routing)
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
                 }
-                .frame(maxWidth: 360)
                 caption("Headphone mixer and DAW use the dedicated headphone bus; mirror copies another output pair.")
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } label: {
             Label("Headphones", systemImage: "headphones")
                 .font(.headline)
@@ -390,39 +451,41 @@ struct OrpheusControlView: View {
                                        active: viewModel.digital.unlocked)
                     OrpheusStatusBadge(title: viewModel.digital.asynchronous ? "Input asynchronous" : "Input synchronous",
                                        active: viewModel.digital.asynchronous)
+                    Spacer(minLength: 0)
                 }
 
-                OrpheusChoicePicker(title: "Input connector",
-                                    choices: OrpheusChoices.digitalInputType,
-                                    selection: viewModel.digital.inputType) { viewModel.setDigitalInputType($0) }
-                    .frame(maxWidth: 360)
+                labeledChoice("Input connector",
+                              choices: OrpheusChoices.digitalInputType,
+                              selection: viewModel.digital.inputType,
+                              onSelect: viewModel.setDigitalInputType)
 
-                OrpheusChoicePicker(title: "Channel status",
-                                    choices: OrpheusChoices.digitalChannelStatus,
-                                    selection: viewModel.digital.channelStatus) { viewModel.setDigitalChannelStatus($0) }
-                    .frame(maxWidth: 360)
+                labeledChoice("Channel status",
+                              choices: OrpheusChoices.digitalChannelStatus,
+                              selection: viewModel.digital.channelStatus,
+                              onSelect: viewModel.setDigitalChannelStatus)
 
-                OrpheusChoicePicker(title: "Output word length",
-                                    choices: OrpheusChoices.digitalBitDepth,
-                                    selection: viewModel.digital.bitDepth) { viewModel.setDigitalBitDepth($0) }
-                    .frame(maxWidth: 360)
+                labeledChoice("Output word length",
+                              choices: OrpheusChoices.digitalBitDepth,
+                              selection: viewModel.digital.bitDepth,
+                              onSelect: viewModel.setDigitalBitDepth)
 
                 Group {
-                    OrpheusChoicePicker(title: "Output sample rate",
-                                        choices: OrpheusChoices.digitalSampleRate,
-                                        selection: viewModel.digital.sampleRate) { viewModel.setDigitalSampleRate($0) }
-                        .frame(maxWidth: 360)
+                    labeledChoice("Output sample rate",
+                                  choices: OrpheusChoices.digitalSampleRate,
+                                  selection: viewModel.digital.sampleRate,
+                                  onSelect: viewModel.setDigitalSampleRate)
 
-                    OrpheusChoicePicker(title: "Output sync",
-                                        choices: OrpheusChoices.digitalSync,
-                                        selection: viewModel.digital.syncSource) { viewModel.setDigitalSync($0) }
-                        .frame(maxWidth: 360)
+                    labeledChoice("Output sync",
+                                  choices: OrpheusChoices.digitalSync,
+                                  selection: viewModel.digital.syncSource,
+                                  onSelect: viewModel.setDigitalSync)
                 }
                 .disabled(!viewModel.unit.digitalOutputClockIsIndependent)
 
                 caption("Output sample rate and sync are independent only when the sample rate converter is on the digital output.")
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } label: {
             Label("Digital I/O", systemImage: "cable.connector")
                 .font(.headline)
@@ -434,8 +497,6 @@ struct OrpheusControlView: View {
     private var meterSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                Toggle("Live meters", isOn: $viewModel.metersLive)
-                    .toggleStyle(.switch)
                 OrpheusMeterGrid(feed: viewModel.meterFeed, columns: meterColumns)
                 caption("Peak levels in dBFS over the vendor's 48 dB range. DI, DAW 11/12 and HP positions are confirmed on hardware; the rest follow the vendor layout.")
             }
@@ -486,10 +547,45 @@ struct OrpheusControlView: View {
                 set: { if !$0 { viewModel.pendingPhantomChannel = nil } })
     }
 
+    private func pairedCards<Left: View, Right: View>(
+        @ViewBuilder left: () -> Left,
+        @ViewBuilder right: () -> Right
+    ) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            left()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            right()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    private func labeledRow<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Text(title)
+                .frame(width: 148, alignment: .leading)
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func labeledChoice(_ title: String,
+                               choices: [OrpheusChoice],
+                               selection: UInt8,
+                               onSelect: @escaping (UInt8) -> Void) -> some View {
+        labeledRow(title) {
+            OrpheusChoicePicker(title: title, choices: choices, selection: selection, onSelect: onSelect)
+                .pickerStyle(.menu)
+                .labelsHidden()
+        }
+    }
+
     private func caption(_ text: String) -> some View {
         Text(text)
             .font(.caption)
             .foregroundStyle(.secondary)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func errorLabel(_ message: String) -> some View {
@@ -522,11 +618,13 @@ private struct OrpheusMeterGrid: View {
                 .foregroundStyle(.orange)
         }
         if let meters = feed.snapshot {
+            let levels = feed.displayedLevels.isEmpty ? meters.levels : feed.displayedLevels
             LazyVGrid(columns: columns, alignment: .leading, spacing: 4) {
-                ForEach(Array(meters.levels.enumerated()), id: \.offset) { index, level in
+                ForEach(Array(levels.enumerated()), id: \.offset) { index, level in
                     OrpheusMeterBar(label: OrpheusMeterSnapshot.label(for: index),
                                     level: level,
-                                    fullScale: meters.fullScale(at: index))
+                                    fullScale: meters.fullScale(at: index),
+                                    clip: feed.displayedClips.indices.contains(index) ? feed.displayedClips[index] : nil)
                 }
             }
         } else {

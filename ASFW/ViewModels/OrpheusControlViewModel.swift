@@ -12,7 +12,25 @@ struct OrpheusWriteLogEntry: Identifiable {
 /// the meter section, not the whole panel (which made faders flicker mid-drag).
 final class OrpheusMeterFeed: ObservableObject {
     @Published fileprivate(set) var snapshot: OrpheusMeterSnapshot?
+    @Published fileprivate(set) var displayedLevels: [UInt16] = []
+    @Published fileprivate(set) var displayedClips: [Bool] = []
     @Published fileprivate(set) var error: String?
+
+    private var ballistics = OrpheusMeterBallistics()
+
+    /// Advances ballistics only on a successful block read, matching the original
+    /// `meterTimerFired:` which leaves the last pixels in place when a read fails.
+    func apply(snapshot: OrpheusMeterSnapshot?) {
+        guard let snapshot else { return }
+        self.snapshot = snapshot
+        let next = ballistics.tick(levels: snapshot.levels, legacyDecay: snapshot.legacyDecay)
+        if displayedLevels != next.levels {
+            displayedLevels = next.levels
+        }
+        if displayedClips != next.clips {
+            displayedClips = next.clips
+        }
+    }
 }
 
 final class OrpheusControlViewModel: ObservableObject {
@@ -33,15 +51,13 @@ final class OrpheusControlViewModel: ObservableObject {
     @Published var mixDefeats = Array(repeating: false, count: OrpheusWire.mixBusCount)
     @Published var syncSource: OrpheusSyncSource?
 
-    /// Writes stay off until the user opts in, so a first session on new
-    /// hardware is read-only.
-    @Published var writesEnabled = false
+    @Published var writesEnabled = true
     @Published var selectedBus = 0
     @Published var pendingPhantomChannel: Int?
     @Published private(set) var writeLog: [OrpheusWriteLogEntry] = []
 
     let meterFeed = OrpheusMeterFeed()
-    @Published var metersLive = false {
+    @Published var metersLive = true {
         didSet { updateMeterPolling() }
     }
 
@@ -54,11 +70,15 @@ final class OrpheusControlViewModel: ObservableObject {
     private var meterReadInFlight = false
     private var meterFailures = 0
     private var lastMasterVolumeEdit: Date?
+    private var pendingRefresh = false
+    private var findRetries = 0
     private let writeQueue = DispatchQueue(label: "net.asfw.app.Orpheus.write", qos: .userInitiated)
     private let meterQueue = DispatchQueue(label: "net.asfw.app.Orpheus.meters", qos: .utility)
 
     private static let debounceInterval: TimeInterval = 0.08
-    private static let meterInterval: TimeInterval = 0.15
+    private static let meterInterval: TimeInterval = 1.0 / 30.0
+    private static let findRetryInterval: TimeInterval = 0.4
+    private static let findRetryLimit = 8
     /// Meter blocks read just after a volume write can still carry the old value.
     private static let masterVolumeReadbackHold: TimeInterval = 1.0
     private static let writeLogLimit = 40
@@ -72,20 +92,37 @@ final class OrpheusControlViewModel: ObservableObject {
                 guard let self else { return }
                 self.isConnected = connected
                 if connected {
+                    self.findRetries = 0
+                    self.writesEnabled = true
+                    self.metersLive = true
+                    self.updateMeterPolling()
                     self.refresh()
                 } else {
                     self.refreshRequestID = UUID()
                     self.isLoading = false
+                    self.pendingRefresh = false
+                    self.findRetries = 0
                     self.hasState = false
                     self.device = nil
-                    self.metersLive = false
+                    self.meterTimer?.cancel()
+                    self.meterTimer = nil
                     self.cancelPendingWrites()
                     self.errorMessage = "Driver not connected"
                 }
             }
             .store(in: &cancellables)
 
+        connector.statusPublisher
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self, self.isConnected, self.device == nil else { return }
+                self.refresh()
+            }
+            .store(in: &cancellables)
+
         isConnected = connector.isConnected
+        writesEnabled = true
+        updateMeterPolling()
     }
 
     deinit {
@@ -100,7 +137,10 @@ final class OrpheusControlViewModel: ObservableObject {
             errorMessage = "Driver not connected"
             return
         }
-        guard !isLoading else { return }
+        if isLoading {
+            pendingRefresh = true
+            return
+        }
 
         let requestID = UUID()
         refreshRequestID = requestID
@@ -115,12 +155,19 @@ final class OrpheusControlViewModel: ObservableObject {
                 guard let self, self.refreshRequestID == requestID else { return }
                 self.isLoading = false
                 self.apply(device: device, snapshot: snapshot)
+                if self.pendingRefresh {
+                    self.pendingRefresh = false
+                    self.refresh()
+                } else {
+                    self.scheduleFindRetryIfNeeded()
+                }
             }
         }
     }
 
     func apply(device: OrpheusDeviceInfo?, snapshot: OrpheusStateSnapshot?) {
         self.device = device
+        if device != nil { findRetries = 0 }
         guard device != nil, let snapshot else {
             hasState = false
             failedReads = []
@@ -468,7 +515,7 @@ final class OrpheusControlViewModel: ObservableObject {
         meterTimer?.cancel()
         meterTimer = nil
         meterFailures = 0
-        guard metersLive else { return }
+        guard metersLive, isConnected else { return }
         meterTimer = Timer.publish(every: Self.meterInterval, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.pollMeters() }
@@ -495,6 +542,7 @@ final class OrpheusControlViewModel: ObservableObject {
                     self.meterFailures += 1
                     let error = target.nodeID == nil ? "Node ID unknown" : "Meter read failed"
                     if self.meterFeed.error != error { self.meterFeed.error = error }
+                    self.meterFeed.apply(snapshot: nil)
                     return
                 }
                 self.meterFailures = 0
@@ -505,7 +553,7 @@ final class OrpheusControlViewModel: ObservableObject {
     }
 
     private func applyMeters(_ snapshot: OrpheusMeterSnapshot) {
-        meterFeed.snapshot = snapshot
+        meterFeed.apply(snapshot: snapshot)
         if let types = snapshot.analogInputTypes {
             for (channel, type) in types.enumerated() where analog[channel].inputType != type {
                 analog[channel].inputType = type
@@ -538,9 +586,7 @@ final class OrpheusControlViewModel: ObservableObject {
                          debounceKey: String? = nil,
                          _ operation: @escaping (ASFWDriverConnector, UInt64) -> Bool) {
         guard writesEnabled, let guid = device?.guid else {
-            errorMessage = writesEnabled
-                ? "No Prism Sound Orpheus found on the bus"
-                : "Writes are disabled. Enable them to change settings."
+            errorMessage = "No Prism Sound Orpheus found on the bus"
             refresh()
             return
         }
@@ -586,6 +632,19 @@ final class OrpheusControlViewModel: ObservableObject {
                 guard let self, let source else { return }
                 self.syncSource = source
             }
+        }
+    }
+
+    private func scheduleFindRetryIfNeeded() {
+        guard isConnected, device == nil, findRetries < Self.findRetryLimit else { return }
+        findRetries += 1
+        let requestID = refreshRequestID
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.findRetryInterval) { [weak self] in
+            guard let self,
+                  self.refreshRequestID == requestID,
+                  self.isConnected,
+                  self.device == nil else { return }
+            self.refresh()
         }
     }
 

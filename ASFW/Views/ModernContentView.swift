@@ -113,7 +113,7 @@ struct ModernContentView: View {
             case .avcUnits, .avcCommands, .avcReport: return debugVM.hasAVCDevice
             case .diceReport: return debugVM.hasDICEDevice
             case .duet: return debugVM.hasDuetDevice
-            case .orpheus: return debugVM.hasOrpheusDevice
+            case .orpheus: return true
             case .audioAnalyzer, .audioTelemetry, .audioGeometry:
                 return !publishedAudioDevices.isEmpty
             default: return true
