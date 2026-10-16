@@ -210,7 +210,8 @@ struct OrpheusCodecTests {
         #expect(OrpheusMix.soloMask(input: 3, linked: true) == 0x000C)
         #expect(OrpheusMix.soloMask(input: nil, linked: true) == 0)
         #expect(OrpheusMix.isLinkable(input: 9))
-        #expect(!OrpheusMix.isLinkable(input: 10))
+        #expect(OrpheusMix.isLinkable(input: 11))
+        #expect(!OrpheusMix.isLinkable(input: 12))
     }
 
     @Test func volumeSelectHeadphoneBitSetsPartner() {
@@ -344,5 +345,60 @@ struct OrpheusCodecTests {
         #expect(OrpheusChoices.brightnessLabel(8) == "High")
         #expect(OrpheusChoices.brightnessLabel(4) == "Low")
         #expect(OrpheusChoices.brightnessLabel(1) == "Min")
+    }
+
+    // MARK: - Captured Orpheus responses (firmware 1.6)
+
+    private func hex(_ text: String) -> Data {
+        Data(text.split(separator: " ").map { UInt8($0, radix: 16)! })
+    }
+
+    @Test func capturedStatusResponsesParse() throws {
+        let firmwareBytes = try #require(OrpheusCodec.validatedResponse(
+            hex("0C 08 00 00 11 98 B6 01 06 00 1B 00 00 00 00"), command: .firmwareVersion, isControl: false))
+        #expect(OrpheusFirmwareVersion(statusResponse: firmwareBytes) == OrpheusFirmwareVersion(major: 1, minor: 6))
+
+        let unitBytes = try #require(OrpheusCodec.validatedResponse(
+            hex("0C 08 00 00 11 98 BF D2 00 00 03 00 00 03 F0 00"), command: .unitState, isControl: false))
+        let unit = try #require(OrpheusUnitState(statusResponse: unitBytes))
+        #expect(unit.masterVolume == -46 * 256)
+        #expect(unit.volumeSelectMask == 0x0003)
+        #expect(!unit.masterMute && !unit.masterLock && !unit.identify)
+        #expect(unit.adatMode == 3 && unit.hasAdatInput)
+        #expect(unit.headphoneSource == 0)
+        #expect(unit.meterBrightness == 15)
+
+        let analogBytes = try #require(OrpheusCodec.validatedResponse(
+            hex("0C 08 00 00 11 98 CF 00 01 07 00 0A 14 00 00 00"), command: .analogChannelState, isControl: false))
+        let analog = try #require(OrpheusAnalogChannelState(statusResponse: analogBytes, channel: 0))
+        #expect(analog.type == .mic)
+        #expect(analog.lineInputLevel == 1 && analog.lineOutputLevel == 1)
+        #expect(!analog.phantom)
+        #expect(analog.micGain == 10 && analog.instrumentGain == 20)
+
+        let digitalBytes = try #require(OrpheusCodec.validatedResponse(
+            hex("0C 08 00 00 11 98 DF 00 00 18 02 00 00 00 00 00"), command: .digitalState, isControl: false))
+        let digital = try #require(OrpheusDigitalState(statusResponse: digitalBytes))
+        #expect(digital.bitDepth == 24 && digital.sampleRate == 2 && digital.syncSource == 0)
+        #expect(!digital.unlocked && !digital.asynchronous)
+
+        let defeatBytes = try #require(OrpheusCodec.validatedResponse(
+            hex("0C 08 00 00 11 98 E0 07 00 00 00 00 01 00 00 00"), command: .mixDefeat, isControl: false))
+        #expect(OrpheusMix.parseDefeats(statusResponse: defeatBytes) == [false, false, false, false, true, false])
+
+        #expect(OrpheusSignalSourceCodec.parseStatus(hex("0C FF 1A 10 FF 88 60 08"), hasAdatInput: true) == .local)
+    }
+
+    @Test func capturedMixBusResponseLinksDawPair() throws {
+        var bus = [UInt8](repeating: 0, count: 76)
+        bus[0...6] = [0x0C, 0x08, 0x00, 0x00, 0x11, 0x98, 0xEF]
+        bus[64...68] = [0xFB, 0xBF, 0x00, 0x01, 0x00]
+        let bytes = try #require(OrpheusCodec.validatedResponse(
+            Data(bus), command: .mixBusState, isControl: false, minimumLength: OrpheusWire.mixBusFrameLength))
+        let state = try #require(OrpheusMixBusState(statusResponse: bytes, bus: 0))
+        #expect(state.gain == 0 && !state.mute && !state.defeated)
+        #expect(state.inputs[10].gain == -1089)
+        #expect(state.inputs[10].linked)
+        #expect(!state.inputs[0].linked)
     }
 }

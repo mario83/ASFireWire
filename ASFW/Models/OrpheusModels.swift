@@ -612,8 +612,8 @@ nonisolated enum OrpheusMix {
     static let inputNames = ["AI 1", "AI 2", "AI 3", "AI 4", "AI 5", "AI 6", "AI 7", "AI 8",
                              "DI 1", "DI 2", "DAW 1", "DAW 2"]
     static let positionRange: ClosedRange<Int8> = -20...20
-    /// Even inputs that can be stereo-linked with the next one (the DAW pair is excluded).
-    static let linkablePairs = [0, 2, 4, 6, 8]
+    /// Even inputs that can be stereo-linked with the next one.
+    static let linkablePairs = [0, 2, 4, 6, 8, 10]
 
     static func isLinkable(input: Int) -> Bool {
         linkablePairs.contains(input & ~1)
