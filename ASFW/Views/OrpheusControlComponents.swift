@@ -107,7 +107,7 @@ struct OrpheusMeterBar: View {
         HStack(spacing: 6) {
             Text(label)
                 .font(.system(.caption2, design: .monospaced))
-                .frame(width: 36, alignment: .leading)
+                .frame(width: 44, alignment: .leading)
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.secondary.opacity(0.15))

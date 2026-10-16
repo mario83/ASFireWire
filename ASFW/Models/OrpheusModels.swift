@@ -828,8 +828,23 @@ nonisolated struct OrpheusMeterSnapshot: Equatable {
         legacyDecay && index >= Self.legacyDecayStartIndex ? OrpheusMeterScale.signedFullScale : OrpheusMeterScale.unsignedFullScale
     }
 
+    /// Indices 0-7, 10-11, 20-23 are confirmed on hardware; the rest follow the
+    /// 50-entry layout (8 AI, 2 DI, 8 AO, 2 DO, 2 HP, 12 DAW, 8 + 8 ADAT).
+    private static let labelGroups: [(prefix: String, count: Int)] = [
+        ("AI", 8), ("DI", 2), ("AO", 8), ("DO", 2), ("HP", 2), ("DAW", 12), ("ADI", 8), ("ADO", 8),
+    ]
+
     static func label(for index: Int) -> String {
-        index < analogMeterCount ? "AI \(index + 1)" : "#\(index + 1)"
+        var start = 0
+        for group in labelGroups {
+            if index < start + group.count {
+                let number = index - start
+                if group.prefix == "HP" { return number == 0 ? "HP L" : "HP R" }
+                return "\(group.prefix) \(number + 1)"
+            }
+            start += group.count
+        }
+        return "#\(index + 1)"
     }
 }
 

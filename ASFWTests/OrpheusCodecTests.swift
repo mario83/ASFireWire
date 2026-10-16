@@ -406,6 +406,18 @@ struct OrpheusCodecTests {
         #expect(unchanged.masterVolume == nil)
     }
 
+    @Test func meterLabelsFollowTheFiftyEntryLayout() {
+        #expect(OrpheusMeterSnapshot.label(for: 0) == "AI 1")
+        #expect(OrpheusMeterSnapshot.label(for: 9) == "DI 2")
+        #expect(OrpheusMeterSnapshot.label(for: 10) == "AO 1")
+        #expect(OrpheusMeterSnapshot.label(for: 20) == "HP L")
+        #expect(OrpheusMeterSnapshot.label(for: 21) == "HP R")
+        #expect(OrpheusMeterSnapshot.label(for: 22) == "DAW 1")
+        #expect(OrpheusMeterSnapshot.label(for: 33) == "DAW 12")
+        #expect(OrpheusMeterSnapshot.label(for: 49) == "ADO 8")
+        #expect(OrpheusMeterSnapshot.label(for: 50) == "#51")
+    }
+
     @Test func meterScaleIsLinearPeakOverFortyEightDecibels() throws {
         let quiet = try #require(OrpheusMeterScale.decibels(0x18))
         #expect(abs(quiet + 68.7) < 0.1)
