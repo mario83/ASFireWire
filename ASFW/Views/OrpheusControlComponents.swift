@@ -15,38 +15,24 @@ struct OrpheusChoicePicker: View {
     }
 }
 
-/// Maps a signed Q8.8 dB value onto a slider whose leftmost position is -inf.
-nonisolated struct OrpheusDecibelMapping {
-    var floorDecibels: Double = -96
-    var ceilingDecibels: Double = 0
-
-    var range: ClosedRange<Double> { floorDecibels...ceilingDecibels }
-
-    func sliderValue(_ raw: Int16) -> Double {
-        guard let decibels = OrpheusLevel.decibels(raw) else { return floorDecibels }
-        return min(max(decibels, floorDecibels), ceilingDecibels)
-    }
-
-    func raw(_ sliderValue: Double) -> Int16 {
-        sliderValue <= floorDecibels ? OrpheusLevel.silent : OrpheusLevel.raw(decibels: sliderValue)
-    }
-}
-
-struct OrpheusGainSlider: View {
+/// A horizontal slider over the vendor's stepped positions.
+struct OrpheusSteppedSlider: View {
     let title: String
     let raw: Int16
-    var mapping = OrpheusDecibelMapping()
-    var step: Double = 0.5
+    let scale: OrpheusSteppedScale
     let onChange: (Int16) -> Void
 
     var body: some View {
         HStack(spacing: 10) {
             Text(title)
                 .frame(width: 110, alignment: .leading)
-            Slider(value: Binding(get: { mapping.sliderValue(raw) },
-                                  set: { onChange(mapping.raw($0)) }),
-                   in: mapping.range,
-                   step: step)
+            Slider(value: Binding(get: { Double(scale.position(for: raw)) },
+                                  set: { position in
+                                      let value = scale.raw(at: Int(position.rounded()))
+                                      if value != raw { onChange(value) }
+                                  }),
+                   in: 0...Double(scale.maxPosition),
+                   step: 1)
             Text(OrpheusLevel.format(raw, fractionDigits: 1))
                 .font(.system(.caption, design: .monospaced))
                 .frame(width: 72, alignment: .trailing)
@@ -54,23 +40,57 @@ struct OrpheusGainSlider: View {
     }
 }
 
+/// A drawn vertical fader. The drag is tracked relative to where it started and
+/// owns the displayed position until release, so device read-backs arriving
+/// mid-drag cannot move the thumb.
 struct OrpheusVerticalFader: View {
     let raw: Int16
-    var mapping = OrpheusDecibelMapping()
+    var scale: OrpheusSteppedScale = .mixGain
     let onChange: (Int16) -> Void
 
+    @State private var dragStartPosition: Int?
+    @State private var dragPosition: Int?
+
+    private let trackHeight: CGFloat = 130
+    private let thumbHeight: CGFloat = 12
+
     var body: some View {
+        let position = dragPosition ?? scale.position(for: raw)
+        let displayed = dragPosition.map { scale.raw(at: $0) } ?? raw
+        let travel = trackHeight - thumbHeight
+        let fraction = CGFloat(position) / CGFloat(scale.maxPosition)
+
         VStack(spacing: 6) {
-            Text(OrpheusLevel.format(raw, fractionDigits: 1).replacingOccurrences(of: " dB", with: ""))
+            Text(OrpheusLevel.format(displayed, fractionDigits: 1).replacingOccurrences(of: " dB", with: ""))
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.secondary)
-            Slider(value: Binding(get: { mapping.sliderValue(raw) },
-                                  set: { onChange(mapping.raw($0)) }),
-                   in: mapping.range,
-                   step: 0.25)
-                .frame(width: 130, height: 22)
-                .rotationEffect(.degrees(-90))
-                .frame(width: 30, height: 130)
+            ZStack(alignment: .bottom) {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.25))
+                    .frame(width: 4, height: trackHeight)
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(dragPosition == nil ? Color.accentColor : Color.accentColor.opacity(0.8))
+                    .frame(width: 26, height: thumbHeight)
+                    .offset(y: -fraction * travel)
+            }
+            .frame(width: 30, height: trackHeight)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        let start = dragStartPosition ?? scale.position(for: raw)
+                        if dragStartPosition == nil { dragStartPosition = start }
+                        let delta = Int((-value.translation.height / travel * CGFloat(scale.maxPosition)).rounded())
+                        let next = min(max(start + delta, 0), scale.maxPosition)
+                        guard next != position else { return }
+                        dragPosition = next
+                        onChange(scale.raw(at: next))
+                    }
+                    .onEnded { _ in
+                        dragStartPosition = nil
+                        dragPosition = nil
+                    }
+            )
         }
     }
 }

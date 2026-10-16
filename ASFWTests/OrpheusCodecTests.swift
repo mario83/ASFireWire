@@ -326,11 +326,32 @@ struct OrpheusCodecTests {
         #expect(OrpheusLevel.raw(decibels: -500) == Int16.min + 1)
         #expect(OrpheusLevel.format(.min) == "-∞ dB")
         #expect(OrpheusLevel.format(-1600) == "-6.25 dB")
+    }
 
-        let mapping = OrpheusDecibelMapping(floorDecibels: -96)
-        #expect(mapping.raw(-96) == .min)
-        #expect(mapping.sliderValue(.min) == -96)
-        #expect(mapping.raw(-12) == -3072)
+    @Test func masterVolumeFollowsTheKnobSteps() {
+        let scale = OrpheusSteppedScale.masterVolume
+        #expect(scale.steps.count == 30)
+        let decibels = (0...4).map { OrpheusLevel.decibels(scale.raw(at: $0)) }
+        #expect(decibels == [nil, -62, -52, -46, -42])
+        #expect(scale.raw(at: 29) == 0)
+        #expect(scale.raw(at: 99) == 0)
+        #expect(scale.position(for: .min) == 0)
+        #expect(scale.position(for: Int16(-36 * 256)) == 7)
+        #expect(scale.position(for: Int16(-47 * 256)) == 3)
+        #expect(scale.position(for: Int16(-90 * 256)) == 1)
+    }
+
+    @Test func mixFaderUsesTheVendorGainTable() {
+        let scale = OrpheusSteppedScale.mixGain
+        #expect(scale.steps.count == 166)
+        #expect(scale.steps == scale.steps.sorted())
+        #expect(scale.raw(at: 0) == .min)
+        #expect(OrpheusLevel.decibels(scale.raw(at: 1)) == -88)
+        #expect(scale.raw(at: 165) == 0)
+        #expect(scale.raw(at: 164) == -65)
+        #expect(scale.position(for: Int16(-6 * 256)) == 141)
+        #expect(scale.position(for: Int16(-20 * 256)) == 85)
+        #expect(scale.position(for: -5100) == 85)
     }
 
     @Test func choiceListsKeepUnknownDeviceValues() {

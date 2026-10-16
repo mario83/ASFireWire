@@ -8,6 +8,13 @@ struct OrpheusWriteLogEntry: Identifiable {
     let succeeded: Bool
 }
 
+/// Meter readings live outside the view model so the fast poll only redraws
+/// the meter section, not the whole panel (which made faders flicker mid-drag).
+final class OrpheusMeterFeed: ObservableObject {
+    @Published fileprivate(set) var snapshot: OrpheusMeterSnapshot?
+    @Published fileprivate(set) var error: String?
+}
+
 final class OrpheusControlViewModel: ObservableObject {
     @Published var isConnected = false
     @Published var isLoading = false
@@ -33,8 +40,7 @@ final class OrpheusControlViewModel: ObservableObject {
     @Published var pendingPhantomChannel: Int?
     @Published private(set) var writeLog: [OrpheusWriteLogEntry] = []
 
-    @Published private(set) var meters: OrpheusMeterSnapshot?
-    @Published private(set) var meterError: String?
+    let meterFeed = OrpheusMeterFeed()
     @Published var metersLive = false {
         didSet { updateMeterPolling() }
     }
@@ -47,11 +53,14 @@ final class OrpheusControlViewModel: ObservableObject {
     private var debounceTokens: [String: UUID] = [:]
     private var meterReadInFlight = false
     private var meterFailures = 0
+    private var lastMasterVolumeEdit: Date?
     private let writeQueue = DispatchQueue(label: "net.asfw.app.Orpheus.write", qos: .userInitiated)
     private let meterQueue = DispatchQueue(label: "net.asfw.app.Orpheus.meters", qos: .utility)
 
     private static let debounceInterval: TimeInterval = 0.08
     private static let meterInterval: TimeInterval = 0.15
+    /// Meter blocks read just after a volume write can still carry the old value.
+    private static let masterVolumeReadbackHold: TimeInterval = 1.0
     private static let writeLogLimit = 40
 
     init(connector: ASFWDriverConnector) {
@@ -162,6 +171,7 @@ final class OrpheusControlViewModel: ObservableObject {
 
     func setMasterVolume(_ raw: Int16) {
         unit.masterVolume = raw
+        lastMasterVolumeEdit = Date()
         send("Master volume \(OrpheusLevel.format(raw, fractionDigits: 1))",
              debounceKey: "master-volume",
              frame: OrpheusControl.masterVolume(raw))
@@ -483,25 +493,28 @@ final class OrpheusControlViewModel: ObservableObject {
                 }
                 guard let snapshot else {
                     self.meterFailures += 1
-                    self.meterError = target.nodeID == nil ? "Node ID unknown" : "Meter read failed"
+                    let error = target.nodeID == nil ? "Node ID unknown" : "Meter read failed"
+                    if self.meterFeed.error != error { self.meterFeed.error = error }
                     return
                 }
                 self.meterFailures = 0
-                self.meterError = nil
+                if self.meterFeed.error != nil { self.meterFeed.error = nil }
                 self.applyMeters(snapshot)
             }
         }
     }
 
     private func applyMeters(_ snapshot: OrpheusMeterSnapshot) {
-        meters = snapshot
+        meterFeed.snapshot = snapshot
         if let types = snapshot.analogInputTypes {
             for (channel, type) in types.enumerated() where analog[channel].inputType != type {
                 analog[channel].inputType = type
             }
         }
+        let recentlyEdited = lastMasterVolumeEdit.map { Date().timeIntervalSince($0) < Self.masterVolumeReadbackHold } ?? false
         if let volume = snapshot.masterVolume,
            debouncedWrites["master-volume"] == nil,
+           !recentlyEdited,
            unit.masterVolume != volume {
             unit.masterVolume = volume
         }

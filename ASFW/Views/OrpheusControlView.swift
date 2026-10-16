@@ -136,10 +136,9 @@ struct OrpheusControlView: View {
     private var unitSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
-                OrpheusGainSlider(title: "Master volume",
-                                  raw: viewModel.unit.masterVolume,
-                                  mapping: OrpheusDecibelMapping(floorDecibels: -96),
-                                  step: 0.5) { viewModel.setMasterVolume($0) }
+                OrpheusSteppedSlider(title: "Master volume",
+                                     raw: viewModel.unit.masterVolume,
+                                     scale: .masterVolume) { viewModel.setMasterVolume($0) }
 
                 HStack(spacing: 20) {
                     Toggle("Mute", isOn: Binding(get: { viewModel.unit.masterMute },
@@ -435,29 +434,10 @@ struct OrpheusControlView: View {
     private var meterSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Toggle("Live meters", isOn: $viewModel.metersLive)
-                        .toggleStyle(.switch)
-                    if let error = viewModel.meterError {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                    Spacer()
-                }
-
-                if let meters = viewModel.meters {
-                    LazyVGrid(columns: meterColumns, alignment: .leading, spacing: 4) {
-                        ForEach(Array(meters.levels.enumerated()), id: \.offset) { index, level in
-                            OrpheusMeterBar(label: OrpheusMeterSnapshot.label(for: index),
-                                            level: level,
-                                            fullScale: meters.fullScale(at: index))
-                        }
-                    }
-                } else {
-                    caption("Meters are read with a block read from the unit; enable live meters to start polling.")
-                }
-                caption("Only AI 1–8 have a confirmed position; other meters are shown by index with raw values.")
+                Toggle("Live meters", isOn: $viewModel.metersLive)
+                    .toggleStyle(.switch)
+                OrpheusMeterGrid(feed: viewModel.meterFeed, columns: meterColumns)
+                caption("Peak levels in dBFS over the vendor's 48 dB range. DI, DAW 11/12 and HP positions are confirmed on hardware; the rest follow the vendor layout.")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
@@ -527,6 +507,32 @@ struct OrpheusControlView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+private struct OrpheusMeterGrid: View {
+    @ObservedObject var feed: OrpheusMeterFeed
+    let columns: [GridItem]
+
+    var body: some View {
+        if let error = feed.error {
+            Text(error)
+                .font(.caption)
+                .foregroundStyle(.orange)
+        }
+        if let meters = feed.snapshot {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 4) {
+                ForEach(Array(meters.levels.enumerated()), id: \.offset) { index, level in
+                    OrpheusMeterBar(label: OrpheusMeterSnapshot.label(for: index),
+                                    level: level,
+                                    fullScale: meters.fullScale(at: index))
+                }
+            }
+        } else {
+            Text("Meters are read with a block read from the unit; enable live meters to start polling.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }

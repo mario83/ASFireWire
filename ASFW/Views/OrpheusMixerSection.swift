@@ -55,9 +55,9 @@ struct OrpheusMixerSection: View {
 
     private var busMasterRow: some View {
         VStack(alignment: .leading, spacing: 10) {
-            OrpheusGainSlider(title: "Bus level",
-                              raw: busState.gain,
-                              step: 0.25) { viewModel.setBusGain(bus: bus, gain: $0) }
+            OrpheusSteppedSlider(title: "Bus level",
+                                 raw: busState.gain,
+                                 scale: .mixGain) { viewModel.setBusGain(bus: bus, gain: $0) }
 
             HStack(spacing: 20) {
                 Toggle("Mute bus", isOn: Binding(get: { busState.mute },

@@ -271,6 +271,52 @@ nonisolated enum OrpheusLevel {
     }
 }
 
+/// The vendor app's control positions, lowest (-inf) first. Values between two
+/// steps (set from the front panel or another client) snap to the nearest one.
+nonisolated struct OrpheusSteppedScale {
+    let steps: [Int16]
+
+    var maxPosition: Int { steps.count - 1 }
+
+    func position(for raw: Int16) -> Int {
+        guard raw != OrpheusLevel.silent else { return 0 }
+        let distance = { (index: Int) in abs(Int(steps[index]) - Int(raw)) }
+        return steps.indices.dropFirst().min { distance($0) < distance($1) } ?? 0
+    }
+
+    func raw(at position: Int) -> Int16 {
+        steps[min(max(position, 0), maxPosition)]
+    }
+
+    /// `HAPI_BIG_KNOB_VALUES`: the 30 positions of the master volume knob and its LED ring.
+    static let masterVolume = OrpheusSteppedScale(steps: [
+        .min, -15872, -13312, -11776, -10752, -10240, -9728, -9216, -8704, -8192,
+        -7680, -7168, -6656, -6144, -5632, -5120, -4608, -4096, -3584, -3072,
+        -2560, -2048, -1792, -1536, -1280, -1024, -768, -512, -256, 0,
+    ])
+
+    /// `_gainValues` of `HapiMixSlider`: 166 fader positions from -inf to 0 dB.
+    static let mixGain = OrpheusSteppedScale(steps: [
+        .min, -22528, -22016, -21504, -20992, -20480, -19968, -19456, -18944, -18432,
+        -17920, -17408, -16896, -16384, -15872, -15360, -15104, -14848, -14592, -14336,
+        -14080, -13824, -13568, -13312, -13056, -12800, -12673, -12544, -12417, -12288,
+        -12161, -12032, -11905, -11776, -11649, -11520, -11393, -11264, -11137, -11008,
+        -10881, -10752, -10625, -10496, -10369, -10240, -10113, -9984, -9857, -9728,
+        -9601, -9472, -9345, -9216, -9089, -8960, -8833, -8704, -8577, -8448,
+        -8321, -8192, -8065, -7936, -7809, -7680, -7553, -7424, -7297, -7168,
+        -7041, -6912, -6785, -6656, -6529, -6400, -6273, -6144, -6017, -5888,
+        -5761, -5632, -5505, -5376, -5249, -5120, -5057, -4993, -4929, -4864,
+        -4801, -4737, -4673, -4608, -4545, -4481, -4417, -4352, -4289, -4225,
+        -4161, -4096, -4033, -3969, -3905, -3840, -3777, -3713, -3649, -3584,
+        -3521, -3457, -3393, -3328, -3265, -3201, -3137, -3072, -3009, -2945,
+        -2881, -2816, -2753, -2689, -2625, -2560, -2497, -2433, -2369, -2304,
+        -2241, -2177, -2113, -2048, -1985, -1921, -1857, -1792, -1729, -1665,
+        -1601, -1536, -1473, -1409, -1345, -1280, -1217, -1153, -1089, -1024,
+        -961, -897, -833, -768, -705, -641, -577, -512, -449, -385,
+        -321, -256, -193, -129, -65, 0,
+    ])
+}
+
 // MARK: - Choice Lists
 
 nonisolated struct OrpheusChoice: Identifiable, Hashable {
