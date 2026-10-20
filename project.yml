@@ -190,6 +190,12 @@ targets:
     sources:
       # Includes DICE diagnostics model, reader, store and view, and the AV/C report model, formatter, store and view; also AnalyzerRenderSubmission.swift, AnalyzerDisplaySmoother.swift, shared Metal plots, Views/AnalyzerPanelCanvas.swift, AnalyzerGlyphAtlas.swift, AnalyzerLivePanel.swift, MetalSpectrogramView.swift, SpectrogramTimeline.swift, SpectrumVisualization.swift, SpectrumFFTLayout.swift, WaterfallProjection.swift, AnalyzerTimingStatistics.swift, AnalyzerReadoutBatch.swift, AnalyzerKernelTiming.swift, KWeightBlockPipeline.swift, KWeightBlocks.metal, and analyzer shaders.
       - path: ASFW
+        excludes:
+          # Prism bitmaps stay on disk for local classic chrome; not in git or the bundle
+          # until a redistribution license exists. OrpheusVendorArt loads them from this
+          # folder, Application Support, or a local Orpheus.app.
+          - Resources/OrpheusVendor
+          - Resources/OrpheusVendor/**
       # Round-Trip Latency: the platform-neutral C core and the shared CoreAudio
       # session from tools/rtl, the same sources the rtl_loopback command line
       # builds. The IOProc stays in C (rtl_session.c); Swift reaches it through

@@ -102,9 +102,10 @@ extension ASFWDriverConnector {
     func asyncBlockRead(destinationID: UInt16,
                         addressHigh: UInt16,
                         addressLow: UInt32,
-                        length: UInt32) -> UInt16? {
+                        length: UInt32,
+                        quiet: Bool = false) -> UInt16? {
         guard isConnected else {
-            log("asyncBlockRead: Not connected", level: .warning)
+            if !quiet { log("asyncBlockRead: Not connected", level: .warning) }
             return nil
         }
 
@@ -129,14 +130,18 @@ extension ASFWDriverConnector {
         }
 
         guard kr == KERN_SUCCESS else {
-            let errorMsg = "asyncBlockRead failed: \(interpretIOReturn(kr))"
-            log(errorMsg, level: .error)
-            lastError = errorMsg
+            if !quiet {
+                let errorMsg = "asyncBlockRead failed: \(interpretIOReturn(kr))"
+                log(errorMsg, level: .error)
+                lastError = errorMsg
+            }
             return nil
         }
 
         let handle = UInt16(truncatingIfNeeded: output)
-        log(String(format: "AsyncBlockRead issued (handle=0x%04X)", handle), level: .success)
+        if !quiet {
+            log(String(format: "AsyncBlockRead issued (handle=0x%04X)", handle), level: .success)
+        }
         return handle
     }
 
@@ -187,9 +192,9 @@ extension ASFWDriverConnector {
         return handle
     }
 
-    func getTransactionResult(handle: UInt16, initialPayloadCapacity: Int = 512) -> AsyncTransactionResult? {
+    func getTransactionResult(handle: UInt16, initialPayloadCapacity: Int = 512, quiet: Bool = false) -> AsyncTransactionResult? {
         guard isConnected else {
-            log("getTransactionResult: Not connected", level: .warning)
+            if !quiet { log("getTransactionResult: Not connected", level: .warning) }
             return nil
         }
 
@@ -226,9 +231,11 @@ extension ASFWDriverConnector {
         }
 
         guard kr == KERN_SUCCESS else {
-            let errorMsg = "getTransactionResult failed: \(interpretIOReturn(kr))"
-            log(errorMsg, level: .error)
-            lastError = errorMsg
+            if !quiet {
+                let errorMsg = "getTransactionResult failed: \(interpretIOReturn(kr))"
+                log(errorMsg, level: .error)
+                lastError = errorMsg
+            }
             return nil
         }
 

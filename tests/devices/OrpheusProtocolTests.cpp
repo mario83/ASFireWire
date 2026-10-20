@@ -31,7 +31,9 @@ struct OrpheusDeviceModel {
         unitState.sampleRateConverter = 0;
 
         for (uint32_t i = 0; i < 8; ++i) {
-            channels[i].inputType = (i < 4) ? 0 : 1; // 0 = mic on 0..3, 1 = line on 4..7
+            channels[i].inputType = (i < 4)
+                ? static_cast<uint8_t>(OrpheusInputType::Mic)
+                : static_cast<uint8_t>(OrpheusInputType::Line);
             channels[i].lineInputLevel = 0;
             channels[i].filter = 0;
             channels[i].micGain = 20;
@@ -168,6 +170,36 @@ struct OrpheusDeviceModel {
                     }
                     return AvcReply::RawBytes(std::move(reply));
                 }
+                if (command == OrpheusCommand::FirmwareVersion) {
+                    std::vector<uint8_t> reply(Wire::kPayloadOffset + 2, 0);
+                    reply[0] = Wire::kResponseStable;
+                    reply[1] = Wire::kSubunitAudio;
+                    reply[2] = Wire::kOpcodeVendorDependent;
+                    reply[3] = Wire::kCompanyId[0];
+                    reply[4] = Wire::kCompanyId[1];
+                    reply[5] = Wire::kCompanyId[2];
+                    reply[6] = static_cast<uint8_t>(OrpheusCommand::FirmwareVersion);
+                    reply[7] = 1;
+                    reply[8] = 6;
+                    return AvcReply::RawBytes(std::move(reply));
+                }
+                if (command == OrpheusCommand::DigitalState) {
+                    std::vector<uint8_t> reply(Wire::kPayloadOffset + 6, 0);
+                    reply[0] = Wire::kResponseStable;
+                    reply[1] = Wire::kSubunitAudio;
+                    reply[2] = Wire::kOpcodeVendorDependent;
+                    reply[3] = Wire::kCompanyId[0];
+                    reply[4] = Wire::kCompanyId[1];
+                    reply[5] = Wire::kCompanyId[2];
+                    reply[6] = static_cast<uint8_t>(OrpheusCommand::DigitalState);
+                    reply[7] = 0;
+                    reply[8] = 0;
+                    reply[9] = 24;
+                    reply[10] = 2;
+                    reply[11] = 0;
+                    reply[12] = 0;
+                    return AvcReply::RawBytes(std::move(reply));
+                }
                 return AvcReply::NotImplemented();
             } else if (ctype == Wire::kCtypeControl) {
                 if (command == OrpheusCommand::MasterVolume) {
@@ -275,8 +307,8 @@ TEST(OrpheusProtocolTests, PrepareQueriesAllGroupsAndPublishesSnapshot) {
     ASSERT_NE(gainFound, snapshot->state.parameters.end());
     EXPECT_EQ(std::get<double>(gainFound->second.value), 20.0);
 
-    // Total commands during prepare: 1 UnitState + 8 Channels + 6 MixBuses + 1 SignalSource = 16
-    EXPECT_EQ(r.device.receivedCommands.size(), 16U);
+    // Firmware + UnitState + 8 analog + 6 mix buses + SignalSource + DigitalState.
+    EXPECT_EQ(r.device.receivedCommands.size(), 18U);
 }
 
 TEST(OrpheusProtocolTests, PrepareIsIdempotent) {

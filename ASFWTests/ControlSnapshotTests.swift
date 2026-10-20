@@ -411,6 +411,20 @@ struct ControlSnapshotTests {
         model.reload()
         #expect(model.content == .unsupported)
     }
+
+    @Test func notReadySnapshotIsRetriedUntilTheDevicePublishes() async {
+        let driver = FakeControlsDriver()
+        driver.notReadyReads = 2
+        let model = DeviceControlsViewModel(source: driver, pollInterval: .milliseconds(5),
+                                            writeTimeout: .milliseconds(200))
+        model.reload()
+        for _ in 0..<40 {
+            if model.snapshot != nil { break }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(model.snapshot != nil)
+        #expect(driver.snapshotReads >= 3)
+    }
 }
 
 /// A driver that serves `ControlSnapshotTests.document` and answers writes the way ControlsHandler does.
@@ -425,6 +439,8 @@ final class FakeControlsDriver: DeviceControlsSource {
     var revision: UInt64 = 7
     var snapshotSequence: UInt64 = 0
     var unsupported = false
+    /// kIOReturnNotReady answers before Prepare has published a snapshot.
+    var notReadyReads = 0
     /// Refuse SetControlParameter with this IOReturn.
     var refuseWith: kern_return_t?
     /// Fail the write result with this IOReturn once the device "answers".
@@ -452,6 +468,10 @@ final class FakeControlsDriver: DeviceControlsSource {
     func getControlSnapshot(guid: UInt64) -> Result<Data, ControlsDriverError> {
         snapshotReads += 1
         if unsupported { return .failure(.driver(kIOReturnUnsupported)) }
+        if notReadyReads > 0 {
+            notReadyReads -= 1
+            return .failure(.driver(kIOReturnNotReady))
+        }
         let data = documentOverride ?? ControlSnapshotTests.document(revision: revision, masterLevel: level, masterMute: mute)
         let text = String(decoding: data, as: UTF8.self).replacingOccurrences(of: "\"revision\":", with: "\"sequence\":\(snapshotSequence),\"revision\":")
         return .success(Data(text.utf8))

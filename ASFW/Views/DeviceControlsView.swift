@@ -29,7 +29,7 @@ struct DeviceControlsView: View {
                     ForEach(DeviceControlsPresentation.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                .help("Console: the device as hardware strips. Parameters: every control of the driver's model, by block.")
+                .help("Console: a family layout when the driver publishes one, otherwise generic strips. Parameters: every control of the driver's model, by block.")
                 if let updated = model.lastUpdated {
                     Text("Updated \(updated.formatted(date: .omitted, time: .standard))")
                         .font(.caption).foregroundStyle(.secondary)
@@ -113,7 +113,12 @@ struct DeviceControlsContent: View {
             banner(text, systemImage: "exclamationmark.triangle.fill", tint: .red)
         case .loaded(let snapshot):
             switch presentation {
-            case .console: ControlConsoleView(snapshot: snapshot, model: model, scrolls: consoleScrolls)
+            case .console:
+                if snapshot.family == "orpheus" {
+                    OrpheusClassicDeviceControlsView(snapshot: snapshot, model: model)
+                } else {
+                    ControlConsoleView(snapshot: snapshot, model: model, scrolls: consoleScrolls)
+                }
             case .parameters: nodes(snapshot)
             }
         }

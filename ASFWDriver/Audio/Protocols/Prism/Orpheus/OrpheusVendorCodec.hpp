@@ -35,10 +35,13 @@ public:
     static std::optional<std::vector<uint8_t>> BuildMixInputPositionControl(uint8_t bus, uint8_t input, int8_t position, bool isBalance);
     static std::optional<std::vector<uint8_t>> BuildMixBusGainControl(uint8_t bus, int16_t gain);
     static std::optional<std::vector<uint8_t>> BuildMixInputMuteControl(uint8_t bus, uint8_t input, bool muted);
-    static std::vector<uint8_t> BuildMixDefeatControl(uint8_t busMask);
+    static std::optional<std::vector<uint8_t>> BuildMixBusMuteControl(uint8_t bus, bool muted);
+    static std::optional<std::vector<uint8_t>> BuildMixDefeatControl(uint8_t bus, bool defeated);
 
     // Specialized Status Builders
     static std::vector<uint8_t> BuildUnitStateStatus();
+    static std::vector<uint8_t> BuildDigitalStateStatus();
+    static std::vector<uint8_t> BuildFirmwareVersionStatus();
     static std::optional<std::vector<uint8_t>> BuildAnalogChannelStatus(uint8_t channel);
     static std::optional<std::vector<uint8_t>> BuildMixBusStatus(uint8_t bus);
     static std::vector<uint8_t> BuildMixDefeatStatus();
@@ -55,6 +58,7 @@ public:
 
     static std::optional<OrpheusFirmwareVersion> ParseFirmwareVersion(std::span<const uint8_t> response);
     static std::optional<OrpheusUnitState> ParseUnitState(std::span<const uint8_t> response);
+    static std::optional<OrpheusDigitalState> ParseDigitalState(std::span<const uint8_t> response);
     static std::optional<OrpheusAnalogChannelState> ParseAnalogChannelState(std::span<const uint8_t> response, uint32_t channel);
     static std::optional<OrpheusMixBusState> ParseMixBusState(std::span<const uint8_t> response, uint32_t bus);
 };

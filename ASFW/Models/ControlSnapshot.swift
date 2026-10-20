@@ -12,7 +12,7 @@ nonisolated struct ControlSnapshot: Decodable, Sendable, Equatable {
     var schema: String
     /// "0x" + 16 hex digits.
     var guid: String
-    /// The family whose projection produced the document ("avc" today).
+    /// The family whose projection produced the document ("orpheus", "duet", "avc", …).
     var family: String
     var revision: UInt64
     /// Latest confirmed change included in this snapshot (older drivers omit it).
@@ -34,6 +34,7 @@ nonisolated struct ControlSnapshot: Decodable, Sendable, Equatable {
 
     func port(_ id: UInt32) -> ControlPort? { ports.first { $0.id == id } }
     func node(_ id: UInt32) -> ControlNode? { nodes.first { $0.id == id } }
+    func parameter(_ id: UInt32) -> ControlParameter? { parameters.first { $0.id == id } }
 
     /// The node a parameter belongs to: its target node, or the owner of its
     /// target port. A crosspoint parameter has no single node.

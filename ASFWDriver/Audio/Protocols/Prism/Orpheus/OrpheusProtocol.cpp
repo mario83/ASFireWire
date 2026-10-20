@@ -198,6 +198,30 @@ void OrpheusProtocol::ReadControlGroup(OrpheusControlGroup group, uint8_t index,
             });
             break;
         }
+        case OrpheusControlGroup::Digital: {
+            const auto cmd = OrpheusVendorCodec::BuildDigitalStateStatus();
+            SendOrpheusFrame(cmd, [self, finish](IOReturn status, std::vector<uint8_t> resp) {
+                if (status != kIOReturnSuccess) { finish(status, []{}); return; }
+                const auto parsed = OrpheusVendorCodec::ParseDigitalState(resp);
+                if (!parsed) { finish(kIOReturnError, []{}); return; }
+                finish(kIOReturnSuccess, [self, parsed] {
+                    self->controls_.digital = *parsed;
+                });
+            });
+            break;
+        }
+        case OrpheusControlGroup::Firmware: {
+            const auto cmd = OrpheusVendorCodec::BuildFirmwareVersionStatus();
+            SendOrpheusFrame(cmd, [self, finish](IOReturn status, std::vector<uint8_t> resp) {
+                if (status != kIOReturnSuccess) { finish(status, []{}); return; }
+                const auto parsed = OrpheusVendorCodec::ParseFirmwareVersion(resp);
+                if (!parsed) { finish(kIOReturnError, []{}); return; }
+                finish(kIOReturnSuccess, [self, parsed] {
+                    self->controls_.firmware = *parsed;
+                });
+            });
+            break;
+        }
     }
 }
 
@@ -223,36 +247,40 @@ void OrpheusProtocol::Prepare(std::function<void(IOReturn)> done) {
         done(status);
     };
 
-    // 1. Read UnitState
-    self->ReadControlGroup(OrpheusControlGroup::Output, 0, [self, finish](IOReturn status) {
-        if (status != kIOReturnSuccess) { finish(status); return; }
+    // Firmware STATUS 0xB6 is best-effort: missing it must not yield "No controls yet".
+    self->ReadControlGroup(OrpheusControlGroup::Firmware, 0, [self, finish](IOReturn) {
+        self->ReadControlGroup(OrpheusControlGroup::Output, 0, [self, finish](IOReturn status) {
+            if (status != kIOReturnSuccess) { finish(status); return; }
 
-        // 2. Read 8 Analog Channels sequentially
-        auto readAnalog = std::make_shared<std::function<void(uint8_t)>>();
-        *readAnalog = [self, finish, readAnalog](uint8_t ch) {
-            if (ch >= 8) {
-                // 3. Read 6 Mix Buses sequentially
-                auto readMix = std::make_shared<std::function<void(uint8_t)>>();
-                *readMix = [self, finish, readMix](uint8_t bus) {
-                    if (bus >= 6) {
-                        // 4. Read SignalSource
-                        self->ReadControlGroup(OrpheusControlGroup::ClockSource, 0, finish);
-                        return;
-                    }
-                    self->ReadControlGroup(OrpheusControlGroup::Mixer, bus, [bus, finish, readMix](IOReturn status) {
-                        if (status != kIOReturnSuccess) { finish(status); return; }
-                        (*readMix)(static_cast<uint8_t>(bus + 1));
-                    });
-                };
-                (*readMix)(0);
-                return;
-            }
-            self->ReadControlGroup(OrpheusControlGroup::Input, ch, [ch, finish, readAnalog](IOReturn status) {
-                if (status != kIOReturnSuccess) { finish(status); return; }
-                (*readAnalog)(static_cast<uint8_t>(ch + 1));
-            });
-        };
-        (*readAnalog)(0);
+            auto readAnalog = std::make_shared<std::function<void(uint8_t)>>();
+            *readAnalog = [self, finish, readAnalog](uint8_t ch) {
+                if (ch >= 8) {
+                    auto readMix = std::make_shared<std::function<void(uint8_t)>>();
+                    *readMix = [self, finish, readMix](uint8_t bus) {
+                        if (bus >= 6) {
+                            self->ReadControlGroup(OrpheusControlGroup::ClockSource, 0, [self, finish](IOReturn status) {
+                                if (status != kIOReturnSuccess) { finish(status); return; }
+                                self->ReadControlGroup(OrpheusControlGroup::Digital, 0, [finish](IOReturn) {
+                                    finish(kIOReturnSuccess);
+                                });
+                            });
+                            return;
+                        }
+                        self->ReadControlGroup(OrpheusControlGroup::Mixer, bus, [bus, finish, readMix](IOReturn status) {
+                            if (status != kIOReturnSuccess) { finish(status); return; }
+                            (*readMix)(static_cast<uint8_t>(bus + 1));
+                        });
+                    };
+                    (*readMix)(0);
+                    return;
+                }
+                self->ReadControlGroup(OrpheusControlGroup::Input, ch, [ch, finish, readAnalog](IOReturn status) {
+                    if (status != kIOReturnSuccess) { finish(status); return; }
+                    (*readAnalog)(static_cast<uint8_t>(ch + 1));
+                });
+            };
+            (*readAnalog)(0);
+        });
     });
 }
 
@@ -285,12 +313,25 @@ void OrpheusProtocol::SetParameter(AudioModel::ParameterId id,
             return;
         }
 
-        self->ReadControlGroup(write->group, write->index, [self, epoch, id, done](auto status) {
+        self->ReadControlGroup(write->group, write->index, [self, epoch, id, write, done](auto status) {
             if (epoch != self->controlsEpoch_) { done(kIOReturnAborted, false); return; }
             if (status != kIOReturnSuccess) {
                 self->ReleaseControl();
                 done(status, false);
                 return;
+            }
+            const bool mixerLink = id.value >= OrpheusControl::MixerLink && id.value < OrpheusControl::MixerLink + 72;
+            const bool mixerPan = id.value >= OrpheusControl::MixerPan && id.value < OrpheusControl::MixerPan + 72;
+            if (mixerLink || mixerPan) {
+                const auto base = mixerLink ? OrpheusControl::MixerLink : OrpheusControl::MixerPan;
+                const auto cp = id.value - base;
+                const auto bus = cp / 12;
+                const auto left = (cp % 12) & ~1u;
+                auto& mixer = self->controls_.mixer[bus];
+                const auto& desired = write->desired.mixer[bus];
+                mixer.inputLinked = desired.inputLinked;
+                mixer.inputPans[left] = desired.inputPans[left];
+                mixer.inputPans[left + 1] = desired.inputPans[left + 1];
             }
             self->FinishControlWrite(id, done);
         });
@@ -343,17 +384,17 @@ void OrpheusProtocol::SetRoute(AudioModel::NodeId router,
     const auto epoch = controlsEpoch_;
     const size_t inIndex = static_cast<size_t>(source - routes.inputs.begin()); // 0 = inA, 1 = inB
 
-    uint8_t inputTypeVal = 0;
+    uint8_t inputTypeVal = static_cast<uint8_t>(OrpheusInputType::Mic);
     if (ch < 2) {
-        // Ch 1-2: inA = XLR, inB = Jack (Instrument = 2)
-        if (inIndex == 1) {
-            inputTypeVal = 2; // Instrument
-        } else {
-            inputTypeVal = (self->controls_.analog[ch].lineInputLevel != 0) ? 1 : 0;
-        }
+        // Ch 1-2: inA = XLR (mic), inB = jack (instrument). Line is connector-detected.
+        inputTypeVal = inIndex == 1
+            ? static_cast<uint8_t>(OrpheusInputType::Instrument)
+            : static_cast<uint8_t>(OrpheusInputType::Mic);
     } else {
-        // Ch 3-4: inA = XLR, inB = Line (Line TRS = 1)
-        inputTypeVal = (inIndex == 1) ? 1 : 0;
+        // Ch 3-4: inA = XLR (mic), inB = Line TRS.
+        inputTypeVal = inIndex == 1
+            ? static_cast<uint8_t>(OrpheusInputType::Line)
+            : static_cast<uint8_t>(OrpheusInputType::Mic);
     }
 
     const auto frame = OrpheusVendorCodec::BuildAnalogControl(OrpheusCommand::InputType, static_cast<uint8_t>(ch), inputTypeVal);

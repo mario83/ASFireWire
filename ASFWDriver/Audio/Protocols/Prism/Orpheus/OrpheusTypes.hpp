@@ -107,9 +107,10 @@ enum class OrpheusAdatMode : uint8_t {
     Direct = 4
 };
 
+/// Connector-detected analog source. Matches Orpheus.app / STATUS 0xCF byte 8.
 enum class OrpheusInputType : uint8_t {
-    Mic = 0,
-    Line = 1,
+    Line = 0,
+    Mic = 1,
     Instrument = 2
 };
 
@@ -224,14 +225,26 @@ struct OrpheusAnalogChannelState {
     [[nodiscard]] static constexpr bool HasInstrumentInput(uint32_t channel) noexcept { return channel < 2; }
 };
 
+struct OrpheusDigitalState {
+    uint8_t inputType{0};
+    uint8_t channelStatus{0};
+    uint8_t bitDepth{24};
+    uint8_t sampleRate{2};
+    uint8_t syncSource{0};
+    bool unlocked{false};
+    bool asynchronous{false};
+};
+
 struct OrpheusMixBusState {
     uint8_t busIndex{0};
     int16_t masterGain{0};
     bool masterMute{false};
     uint16_t soloMask{0};
+    bool defeated{false};
     std::array<int16_t, 12> inputGains{};
     std::array<int8_t, 12> inputPans{};
     std::array<bool, 12> inputMutes{};
+    std::array<bool, 12> inputLinked{};
 };
 
 } // namespace ASFW::Audio::Prism::Orpheus

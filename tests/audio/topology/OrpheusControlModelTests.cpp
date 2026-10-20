@@ -19,20 +19,20 @@ OrpheusControlsState MakeDefaultState() {
     state.unit.adatMode = 3;         // Send/Return
     state.syncSource = OrpheusSyncSource::Local;
 
-    // Channels 0..1: Mic (XLR) default
-    state.analog[0].inputType = 0;
+    // Channels 0..1: Mic (XLR) / Instrument (jack)
+    state.analog[0].inputType = static_cast<uint8_t>(OrpheusInputType::Mic);
     state.analog[0].micGain = 45;
     state.analog[0].phantom = true;
 
-    state.analog[1].inputType = 2; // Instrument
+    state.analog[1].inputType = static_cast<uint8_t>(OrpheusInputType::Instrument);
     state.analog[1].instrumentGain = 20;
 
     // Channels 2..3: Mic (XLR) default
-    state.analog[2].inputType = 0;
+    state.analog[2].inputType = static_cast<uint8_t>(OrpheusInputType::Mic);
     state.analog[2].micGain = 30;
     state.analog[2].phantom = true;
 
-    state.analog[3].inputType = 0;
+    state.analog[3].inputType = static_cast<uint8_t>(OrpheusInputType::Mic);
     state.analog[3].micGain = 25;
 
     // Channels 4..7: Line
@@ -41,6 +41,21 @@ OrpheusControlsState MakeDefaultState() {
     }
 
     return state;
+}
+
+TEST(OrpheusControlModelTests, SilentHardwareStateValidates) {
+    OrpheusControlsState state;
+    state.mixer[0].inputGains[3] = Scales::kSilent;
+    state.unit.meterBrightness = 0;
+    state.analog[0].filter = 9; // unknown wire value; model clamps to Flat
+    const auto model = BuildOrpheusControls(state, 1, 0);
+    const auto topValidation = AM::validate(model.topology);
+    ASSERT_TRUE(topValidation) << topValidation.error().message;
+    const auto stateValidation = AM::validateState(model.topology, model.state);
+    ASSERT_TRUE(stateValidation) << stateValidation.error().message;
+    EXPECT_EQ(std::get<double>(model.state.parameters.at(AM::ParameterId{OrpheusControl::OutputVolume}).value),
+              static_cast<double>(Scales::kSilent) / 256.0);
+    EXPECT_EQ(std::get<int64_t>(model.state.parameters.at(AM::ParameterId{OrpheusControl::HighPassFilter}).value), 0);
 }
 
 TEST(OrpheusControlModelTests, TopologyAndObservedStateValidate) {
@@ -92,18 +107,16 @@ TEST(OrpheusControlModelTests, CoreAudioProjectionMasterVolumeLandsOnElementZero
     EXPECT_EQ(vol->classId, uint32_t{'vlme'});
 }
 
-TEST(OrpheusControlModelTests, GainApplicabilityFollowsInputType) {
+TEST(OrpheusControlModelTests, PreampWritesStayApplicableIndependentOfJackDetect) {
     auto state = MakeDefaultState();
-    // Ch 0 is Mic (inputType 0)
-    auto model = BuildOrpheusControls(state, 1, 0);
-    const auto gain0 = AM::ParameterId{OrpheusControl::Gain + 0};
-    EXPECT_TRUE(model.state.parameters.at(gain0).applicable);
-
-    // Set Ch 2 to Line (inputType 1)
-    state.analog[2].inputType = 1;
-    model = BuildOrpheusControls(state, 1, 0);
-    const auto gain2 = AM::ParameterId{OrpheusControl::Gain + 2};
-    EXPECT_FALSE(model.state.parameters.at(gain2).applicable);
+    state.analog[2].inputType = static_cast<uint8_t>(OrpheusInputType::Line);
+    const auto model = BuildOrpheusControls(state, 1, 0);
+    EXPECT_TRUE(model.state.parameters.at(AM::ParameterId{OrpheusControl::Gain + 0}).applicable);
+    EXPECT_TRUE(model.state.parameters.at(AM::ParameterId{OrpheusControl::Gain + 2}).applicable);
+    EXPECT_TRUE(model.state.parameters.at(AM::ParameterId{OrpheusControl::Phantom + 2}).applicable);
+    EXPECT_EQ(std::get<int64_t>(model.state.parameters.at(AM::ParameterId{OrpheusControl::AnalogInputType + 2}).value), 0);
+    EXPECT_EQ(std::get<double>(model.state.parameters.at(AM::ParameterId{OrpheusControl::FirmwareVersion}).value),
+              (1 << 8) | 6);
 }
 
 TEST(OrpheusControlModelTests, CompositeInputTypesArePublishedForPreampChannels) {
@@ -116,8 +129,8 @@ TEST(OrpheusControlModelTests, CompositeInputTypesArePublishedForPreampChannels)
     EXPECT_EQ(types[2].element, 3U);
     EXPECT_EQ(types[3].element, 4U);
 
-    // Ch 1 (elements 1 & 2 have XLR vs Instrument)
-    EXPECT_GE(types[0].choices.size(), 4U); // Mic, +4, -10, Inst
+    // AI 1/2 expose XLR vs instrument via the router; line +4/-10 is a separate level.
+    EXPECT_GE(types[0].choices.size(), 2U);
 }
 
 TEST(OrpheusControlModelTests, MixerCrosspointCountMatchesSixBusesByTwelveInputs) {
@@ -132,6 +145,19 @@ TEST(OrpheusControlModelTests, MixerCrosspointCountMatchesSixBusesByTwelveInputs
     EXPECT_EQ(mixer->inputs.size(), 12U);
     EXPECT_EQ(mixer->outputs.size(), 6U);
     EXPECT_EQ(mixer->crosspoints.size(), 72U);
+}
+
+TEST(OrpheusControlModelTests, MixerDawPairFollowsTheOutputBus) {
+    const auto model = BuildOrpheusControls(MakeDefaultState(), 1, 0);
+    const auto nameOf = [&](uint32_t id) {
+        const auto found = std::ranges::find_if(model.topology.parameters, [&](const auto& p) {
+            return p.id.value == id;
+        });
+        return found == model.topology.parameters.end() ? std::string{} : found->name;
+    };
+    EXPECT_NE(nameOf(OrpheusControl::Mixer + 10).find("DAW 1"), std::string::npos);
+    EXPECT_NE(nameOf(OrpheusControl::Mixer + 12 + 10).find("DAW 3"), std::string::npos);
+    EXPECT_NE(nameOf(OrpheusControl::Mixer + 12 + 11).find("DAW 4"), std::string::npos);
 }
 
 } // namespace

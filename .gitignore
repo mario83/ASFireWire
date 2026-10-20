@@ -112,3 +112,6 @@ __pycache__/
 # Local development projects and editor settings
 /ADKVirtualAudioLab/
 /.vscode/
+
+# Prism Sound Orpheus bitmaps — local only until a redistribution license exists.
+ASFW/Resources/OrpheusVendor/

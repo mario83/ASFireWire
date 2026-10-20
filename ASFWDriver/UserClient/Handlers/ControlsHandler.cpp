@@ -6,6 +6,7 @@
 #include "ControlsHandler.hpp"
 #include "../../Audio/Controls/ControlService.hpp"
 #include "../../Audio/Controls/CoreAudioProjection.hpp"
+#include "../../Audio/Protocols/IDeviceProtocol.hpp"
 
 #include "../WireFormats/AVCDiscoveryDocument.hpp"
 #include "../WireFormats/ControlSnapshotDocument.hpp"
@@ -93,6 +94,23 @@ kern_return_t ControlsHandler::GetControlSnapshot(IOUserClientMethodArguments* a
     if (!discovery_) return kIOReturnNotReady;
     if (!args || !args->scalarInput || args->scalarInputCount < 3) return kIOReturnBadArgument;
     const uint64_t guid = GuidOf(args);
+    // CopySnapshot never does I/O. A vendor provider is empty until Prepare has
+    // finished; kick that off and let the app retry. Do not wait on FCP here.
+    if (lookup_) {
+        if (auto protocol = lookup_(guid)) {
+            if (const auto unit = discovery_->Unit(guid)) {
+                if (const auto route = unit->CurrentRoute()) {
+                    protocol->UpdateRuntimeContext(*route, unit);
+                }
+            }
+            if (auto* provider = protocol->Controls()) {
+                if (!provider->CopySnapshot()) {
+                    provider->Prepare([](IOReturn) {});
+                    return kIOReturnNotReady;
+                }
+            }
+        }
+    }
     const auto current = C::ControlService(discovery_, lookup_).CopySnapshot(guid);
     if (!current) return kIOReturnUnsupported;
     const auto document = Wire::BuildControlSnapshotDocument(guid, current->family, current->topology,

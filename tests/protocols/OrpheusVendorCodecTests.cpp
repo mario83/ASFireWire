@@ -193,25 +193,25 @@ TEST(OrpheusVendorCodecTests, UnitStateParsesPackedFields) {
 
 TEST(OrpheusVendorCodecTests, AnalogChannelStateParsesFlagsAndGains) {
     const uint8_t payload[] = {
-        0x02,                    // channel 2
-        0x00,                    // inputType: Mic
+        0x00,                    // channel 0
+        0x01,                    // inputType: Mic
         0b0110'0101,             // phase=1 (bit 6), phantom=1 (bit 5), overkiller=1 (bit 2), lineLevel=1 (bit 0)
-        0x02,                    // filter: 75Hz
+        0x01,                    // filter: 80 Hz
         48,                      // micGain: 48 dB
         15                       // instrumentGain: 15 dB
     };
     const auto resp = MakeResponse(Wire::kResponseStable, OrpheusCommand::AnalogChannelState, payload);
 
-    const auto state = OrpheusVendorCodec::ParseAnalogChannelState(resp, 2);
+    const auto state = OrpheusVendorCodec::ParseAnalogChannelState(resp, 0);
     ASSERT_TRUE(state.has_value());
 
-    EXPECT_EQ(state->inputType, 0);
+    EXPECT_EQ(state->inputType, static_cast<uint8_t>(OrpheusInputType::Mic));
     EXPECT_EQ(state->lineInputLevel, 1);
     EXPECT_TRUE(state->overkiller);
     EXPECT_FALSE(state->midSide);
     EXPECT_TRUE(state->phantom);
     EXPECT_TRUE(state->phase);
-    EXPECT_EQ(state->filter, 2);
+    EXPECT_EQ(state->filter, 1);
     EXPECT_EQ(state->micGain, 48);
 }
 
@@ -251,4 +251,29 @@ TEST(OrpheusVendorCodecTests, SignalSourceCodecMatchesPlugs) {
     const auto parsedWck = OrpheusVendorCodec::ParseSignalSourceStatus(respWck, false);
     ASSERT_TRUE(parsedWck.has_value());
     EXPECT_EQ(*parsedWck, OrpheusSyncSource::WordClock);
+}
+
+TEST(OrpheusVendorCodecTests, MixBusStateLinkFlagIsNonZero) {
+    std::vector<uint8_t> payload(67, 0);
+    payload[0] = 2; // bus
+    // Input 0: pan (flag 0). Input 2: balance (0xE8). Input 10: 0xE7 still counts as linked,
+    // matching original GetMix type 8 (`flag != 0`).
+    payload[7 + 0 * 5 + 3] = 0x00;
+    payload[7 + 0 * 5 + 4] = static_cast<uint8_t>(static_cast<int8_t>(-8));
+    payload[7 + 2 * 5 + 3] = 0xE8;
+    payload[7 + 2 * 5 + 4] = 3;
+    payload[7 + 10 * 5 + 3] = 0xE7;
+    payload[7 + 10 * 5 + 4] = 0;
+    const auto resp = MakeResponse(Wire::kResponseStable, OrpheusCommand::MixBusState, payload,
+                                   Wire::kMixBusFrameLength);
+    const auto state = OrpheusVendorCodec::ParseMixBusState(resp, 2);
+    ASSERT_TRUE(state.has_value());
+    EXPECT_FALSE(state->inputLinked[0]);
+    EXPECT_FALSE(state->inputLinked[1]);
+    EXPECT_EQ(state->inputPans[0], -8);
+    EXPECT_TRUE(state->inputLinked[2]);
+    EXPECT_TRUE(state->inputLinked[3]);
+    EXPECT_EQ(state->inputPans[2], 3);
+    EXPECT_TRUE(state->inputLinked[10]);
+    EXPECT_TRUE(state->inputLinked[11]);
 }

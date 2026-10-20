@@ -114,13 +114,28 @@ std::optional<std::vector<uint8_t>> OrpheusVendorCodec::BuildMixInputMuteControl
     return BuildControlFrame(OrpheusCommand::MixInputMute, ops);
 }
 
-std::vector<uint8_t> OrpheusVendorCodec::BuildMixDefeatControl(uint8_t busMask) {
-    const uint8_t ops[] = {busMask};
+std::optional<std::vector<uint8_t>> OrpheusVendorCodec::BuildMixBusMuteControl(uint8_t bus, bool muted) {
+    if (bus >= Wire::kMixBusCount) return std::nullopt;
+    const uint8_t ops[] = {bus, static_cast<uint8_t>(muted ? 1 : 0)};
+    return BuildControlFrame(OrpheusCommand::MixMute, ops);
+}
+
+std::optional<std::vector<uint8_t>> OrpheusVendorCodec::BuildMixDefeatControl(uint8_t bus, bool defeated) {
+    if (bus >= Wire::kMixBusCount) return std::nullopt;
+    const uint8_t ops[] = {bus, static_cast<uint8_t>(defeated ? 1 : 0)};
     return BuildControlFrame(OrpheusCommand::MixDefeat, ops);
 }
 
 std::vector<uint8_t> OrpheusVendorCodec::BuildUnitStateStatus() {
     return BuildStatusFrame(OrpheusCommand::UnitState);
+}
+
+std::vector<uint8_t> OrpheusVendorCodec::BuildDigitalStateStatus() {
+    return BuildStatusFrame(OrpheusCommand::DigitalState);
+}
+
+std::vector<uint8_t> OrpheusVendorCodec::BuildFirmwareVersionStatus() {
+    return BuildStatusFrame(OrpheusCommand::FirmwareVersion);
 }
 
 std::optional<std::vector<uint8_t>> OrpheusVendorCodec::BuildAnalogChannelStatus(uint8_t channel) {
@@ -234,6 +249,21 @@ std::optional<OrpheusFirmwareVersion> OrpheusVendorCodec::ParseFirmwareVersion(s
     };
 }
 
+std::optional<OrpheusDigitalState> OrpheusVendorCodec::ParseDigitalState(std::span<const uint8_t> response) {
+    const auto payload = ValidateResponse(response, OrpheusCommand::DigitalState, false);
+    if (!payload || payload->size() < 6) return std::nullopt;
+    const auto p = *payload;
+    return OrpheusDigitalState{
+        .inputType = p[0],
+        .channelStatus = p[1],
+        .bitDepth = p[2],
+        .sampleRate = p[3],
+        .syncSource = p[4],
+        .unlocked = (p[5] & 0x01) != 0,
+        .asynchronous = (p[5] & 0x02) != 0
+    };
+}
+
 std::optional<OrpheusUnitState> OrpheusVendorCodec::ParseUnitState(std::span<const uint8_t> response) {
     const auto payload = ValidateResponse(response, OrpheusCommand::UnitState, false);
     if (!payload || payload->size() < 8) return std::nullopt;
@@ -293,12 +323,14 @@ std::optional<OrpheusMixBusState> OrpheusVendorCodec::ParseMixBusState(std::span
     const int16_t gain = static_cast<int16_t>((static_cast<uint16_t>(p[1]) << 8) | p[2]);
     const bool mute = (p[3] != 0);
     const uint16_t soloMask = static_cast<uint16_t>((static_cast<uint16_t>(p[4]) << 8) | p[5]);
-    
+    const bool defeated = payload->size() > 6 && p[6] != 0;
+
     OrpheusMixBusState state{
         .busIndex = static_cast<uint8_t>(bus),
         .masterGain = gain,
         .masterMute = mute,
-        .soloMask = soloMask
+        .soloMask = soloMask,
+        .defeated = defeated
     };
 
     for (size_t i = 0; i < Wire::kMixInputCount; ++i) {
@@ -307,6 +339,13 @@ std::optional<OrpheusMixBusState> OrpheusVendorCodec::ParseMixBusState(std::span
         state.inputGains[i] = static_cast<int16_t>((static_cast<uint16_t>(p[base]) << 8) | p[base + 1]);
         state.inputMutes[i] = (p[base + 2] != 0);
         state.inputPans[i] = static_cast<int8_t>(p[base + 4]);
+        if ((i % 2) == 0) {
+            const auto flag = p[base + 3];
+            // Original GetMix type 8: linked = (flag != 0), pan if 0 else balance.
+            const bool linked = flag != 0;
+            state.inputLinked[i] = linked;
+            if (i + 1 < Wire::kMixInputCount) state.inputLinked[i + 1] = linked;
+        }
     }
     return state;
 }

@@ -74,6 +74,9 @@ final class DeviceControlsViewModel: ObservableObject {
     /// The latest value asked for while a write to the same parameter was in
     /// flight; sent when that write finishes. One write per parameter at a time.
     private var queued: [UInt32: ControlValue] = [:]
+    /// Vendor Prepare is async; GetControlSnapshot returns not-ready until it publishes.
+    private var snapshotRetry: Task<Void, Never>?
+    private var snapshotRetryDeadline: ContinuousClock.Instant?
 
     init(source: any DeviceControlsSource, pollInterval: Duration = .milliseconds(50),
          writeTimeout: Duration = .seconds(3)) {
@@ -94,6 +97,9 @@ final class DeviceControlsViewModel: ObservableObject {
 
     var selectedDevice: Device? { devices.first { $0.guid == selectedGUID } }
 
+    /// Orpheus meters are a FireWire block read, not a control-snapshot parameter.
+    var orpheusMeterConnector: ASFWDriverConnector? { source as? ASFWDriverConnector }
+
     func writeState(_ parameterId: UInt32) -> WriteState { writeStates[parameterId] ?? .idle }
 
     // MARK: Loading
@@ -105,6 +111,7 @@ final class DeviceControlsViewModel: ObservableObject {
             writeStates = [:]
             lastChangeSequence = [:]
             queued = [:]
+            cancelSnapshotRetry()
             content = .notConnected
             return
         }
@@ -129,6 +136,7 @@ final class DeviceControlsViewModel: ObservableObject {
             lastChangeSequence = [:]
             queued = [:]
             message = nil
+            cancelSnapshotRetry()
         }
         selectedGUID = guid
         refreshSnapshot()
@@ -141,10 +149,12 @@ final class DeviceControlsViewModel: ObservableObject {
             writeStates = [:]
             lastChangeSequence = [:]
             queued = [:]
+            cancelSnapshotRetry()
             content = .notConnected
             return
         }
         guard let guid = selectedGUID else {
+            cancelSnapshotRetry()
             content = .idle
             return
         }
@@ -161,18 +171,51 @@ final class DeviceControlsViewModel: ObservableObject {
                     }
                     queued = [:]
                 }
+                cancelSnapshotRetry()
                 content = .loaded(snapshot)
                 let ids = Set(snapshot.parameters.map(\.id))
                 writeStates = writeStates.filter { ids.contains($0.key) }
                 lastUpdated = Date()
             } catch {
+                cancelSnapshotRetry()
                 content = .failed("The driver's control document could not be read: \(error.localizedDescription)")
             }
         case .failure(let error) where error.isUnsupported:
+            cancelSnapshotRetry()
             content = .unsupported
+        case .failure(let error) where error.isNotReady:
+            scheduleSnapshotRetry(guid: guid)
         case .failure(let error):
+            cancelSnapshotRetry()
             content = .failed("Could not read the device's controls: \(Self.describe(error)).")
         }
+    }
+
+    private func scheduleSnapshotRetry(guid: UInt64) {
+        if snapshotRetryDeadline == nil {
+            snapshotRetryDeadline = ContinuousClock.now.advanced(by: writeTimeout)
+        }
+        if let deadline = snapshotRetryDeadline, ContinuousClock.now >= deadline {
+            cancelSnapshotRetry()
+            content = .failed("The device did not publish its controls in time.")
+            return
+        }
+        guard snapshotRetry == nil else { return }
+        let interval = pollInterval
+        snapshotRetry = Task { [weak self] in
+            try? await Task.sleep(for: interval)
+            await MainActor.run {
+                guard let self, self.selectedGUID == guid else { return }
+                self.snapshotRetry = nil
+                self.refreshSnapshot()
+            }
+        }
+    }
+
+    private func cancelSnapshotRetry() {
+        snapshotRetry?.cancel()
+        snapshotRetry = nil
+        snapshotRetryDeadline = nil
     }
 
     // MARK: Writing
