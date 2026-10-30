@@ -492,47 +492,53 @@ struct OrpheusClassicKnob: View {
     let raw: Int16
     let onChange: (Int16) -> Void
 
-    @State private var lastAngle: Double?
+    @State private var dragStart: Int?
+    @State private var dragPosition: Int?
 
     private var position: Int { OrpheusSteppedScale.masterVolume.position(for: raw) }
+    private var displayed: Int { dragPosition ?? position }
 
     var body: some View {
-        ZStack {
-            if let image = OrpheusVendorArt.knobFrame(index: position) {
-                Image(nsImage: image)
-                    .resizable()
-                    .interpolation(.none)
-            } else {
-                let lit = Int((Double(position) / 29.0 * 12.0).rounded(.down))
-                Circle()
-                    .fill(LinearGradient(colors: [Color(white: 0.85), Color(white: 0.55)],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-                ForEach(0..<12, id: \.self) { index in
+        GeometryReader { geometry in
+            ZStack {
+                if let image = OrpheusVendorArt.knobFrame(index: displayed) {
+                    Image(nsImage: image)
+                        .resizable()
+                        .interpolation(.none)
+                        .id(displayed)
+                } else {
+                    let lit = Int((Double(displayed) / 29.0 * 12.0).rounded(.down))
                     Circle()
-                        .fill(index < lit ? OrpheusClassicPalette.ledOn : OrpheusClassicPalette.ledOff)
-                        .frame(width: 6, height: 6)
-                        .offset(y: -42)
-                        .rotationEffect(.degrees(Double(index) / 12 * 300 - 150))
+                        .fill(LinearGradient(colors: [Color(white: 0.85), Color(white: 0.55)],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                    ForEach(0..<12, id: \.self) { index in
+                        Circle()
+                            .fill(index < lit ? OrpheusClassicPalette.ledOn : OrpheusClassicPalette.ledOff)
+                            .frame(width: 6, height: 6)
+                            .offset(y: -42)
+                            .rotationEffect(.degrees(Double(index) / 12 * 300 - 150))
+                    }
                 }
             }
-        }
-        .contentShape(Circle())
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { gesture in
-                    let center = CGPoint(x: 52, y: 52)
-                    let angle = atan2(gesture.location.x - center.x, center.y - gesture.location.y)
-                    if let last = lastAngle {
-                        var delta = angle - last
-                        if delta > .pi { delta -= 2 * .pi }
-                        if delta < -.pi { delta += 2 * .pi }
-                        let next = min(max(position + Int((delta / 0.18).rounded()), 0), 29)
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .contentShape(Circle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        let start = dragStart ?? position
+                        if dragStart == nil { dragStart = start }
+                        let travel = max(max(geometry.size.height, geometry.size.width), 1) * 2.4
+                        let delta = Double((-gesture.translation.height + gesture.translation.width) / travel) * 29
+                        let next = min(max(start + Int(delta.rounded()), 0), 29)
+                        dragPosition = next
                         onChange(OrpheusSteppedScale.masterVolume.raw(at: next))
                     }
-                    lastAngle = angle
-                }
-                .onEnded { _ in lastAngle = nil }
-        )
+                    .onEnded { _ in
+                        dragStart = nil
+                        dragPosition = nil
+                    }
+            )
+        }
     }
 }
 

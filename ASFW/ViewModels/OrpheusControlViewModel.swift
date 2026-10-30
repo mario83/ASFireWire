@@ -488,6 +488,11 @@ final class OrpheusControlViewModel: ObservableObject {
                 self.meterFailures = 0
                 if self.meterFeed.error != nil { self.meterFeed.error = nil }
                 self.meterFeed.apply(snapshot: snapshot)
+                if let volume = snapshot.masterVolume,
+                   volume != self.unit.masterVolume,
+                   !self.writing(ParameterID.outputVolume) {
+                    self.unit.masterVolume = volume
+                }
                 if let types = snapshot.analogInputTypes {
                     for (channel, type) in types.enumerated() where self.analog[channel].inputType != type {
                         self.analog[channel].inputType = type
