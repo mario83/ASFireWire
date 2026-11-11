@@ -21,6 +21,7 @@ final class OrpheusMeterFeed: ObservableObject {
 
 struct OrpheusDeviceInfo: Equatable {
     let guid: UInt64
+    var title: String
     var guidHex: String { String(format: "0x%016llX", guid) }
 }
 
@@ -105,7 +106,7 @@ final class OrpheusControlViewModel: ObservableObject {
 
     func apply(_ snapshot: ControlSnapshot) {
         if let guid = Self.parseGUID(snapshot.guid) {
-            device = OrpheusDeviceInfo(guid: guid)
+            device = OrpheusDeviceInfo(guid: guid, title: String(format: "%016llX", guid))
         }
         if let packed = uint16(snapshot, ParameterID.firmwareVersion) {
             firmware = OrpheusFirmwareVersion(major: UInt8(packed >> 8), minor: UInt8(packed & 0xFF))
@@ -148,7 +149,12 @@ final class OrpheusControlViewModel: ObservableObject {
             unit.masterVolume = OrpheusLevel.raw(decibels: db)
         }
         if !writing(ParameterID.outputMute) { unit.masterMute = bool(snapshot, ParameterID.outputMute) ?? unit.masterMute }
-        if !writing(ParameterID.masterLock) { unit.masterLock = bool(snapshot, ParameterID.masterLock) ?? unit.masterLock }
+        // Lock is latched in the original app's Device RAM (`Get(3)`). 0xBF
+        // CONTROL omits it, so a post-write unit refresh can report false and
+        // uncheck the button. Adopt a true reading; never clear from snapshot.
+        if !writing(ParameterID.masterLock), bool(snapshot, ParameterID.masterLock) == true {
+            unit.masterLock = true
+        }
         if !writing(ParameterID.volumeSelectMask), let mask = uint16(snapshot, ParameterID.volumeSelectMask) {
             unit.volumeSelectMask = mask
         }
@@ -234,6 +240,19 @@ final class OrpheusControlViewModel: ObservableObject {
     var hasAdatInput: Bool { unit.hasAdatInput }
     var analogInputTypes: [UInt8] { analog.map(\.inputType) }
 
+    var unitSelectorItems: [(UInt64, String)] {
+        let listed = controls?.devices ?? []
+        if listed.isEmpty, let device {
+            return [(device.guid, device.title)]
+        }
+        return listed.map { ($0.guid, String(format: "%016llX", $0.guid)) }
+    }
+
+    func selectUnit(_ guid: UInt64) {
+        guard guid != device?.guid else { return }
+        controls?.select(guid)
+    }
+
     var headphoneRouting: OrpheusHeadphoneRouting {
         OrpheusHeadphones.routing(source: unit.headphoneSource, headphoneBusDefeated: mixBuses[OrpheusHeadphones.headphoneBus].defeated)
     }
@@ -243,12 +262,34 @@ final class OrpheusControlViewModel: ObservableObject {
         return mixBuses[bus].inputs[input & ~1].linked
     }
 
+    var settingsFileName: String {
+        if let guid = device?.guidHex.suffix(8) { return "Orpheus-\(guid).xml" }
+        return "Orpheus.xml"
+    }
+
+    func settingsSnapshot() -> OrpheusSettingsXML.Snapshot {
+        OrpheusSettingsXML.Snapshot(unit: unit, analog: analog, digital: digital,
+                                    mixBuses: mixBuses, syncSource: syncSource)
+    }
+
+    func exportSettings(to url: URL) throws {
+        let data = try OrpheusSettingsXML.encode(settingsSnapshot())
+        try data.write(to: url, options: .atomic)
+    }
+
+    func importSettings(from url: URL) async throws {
+        let data = try Data(contentsOf: url)
+        let settings = try OrpheusSettingsXML.decode(data, base: settingsSnapshot())
+        await applyImported(settings)
+    }
+
     func setMasterVolume(_ raw: Int16) {
         unit.masterVolume = raw
         write(ParameterID.outputVolume, .double(Double(raw) / 256.0))
     }
 
     func setVolumeSelect(bit: Int, enabled: Bool) {
+        guard !unit.masterLock else { return }
         let mask = OrpheusVolumeSelect.setting(unit.volumeSelectMask, bit: bit, enabled: enabled)
         unit.volumeSelectMask = mask
         write(ParameterID.volumeSelectMask, .double(Double(mask)))
@@ -505,6 +546,75 @@ final class OrpheusControlViewModel: ObservableObject {
     }
 
     // MARK: - Snapshot helpers
+
+    private func applyImported(_ settings: OrpheusSettingsXML.Snapshot) async {
+        let previousSync = syncSource
+        analog = settings.analog
+        digital = settings.digital
+        mixBuses = settings.mixBuses
+        unit = settings.unit
+        syncSource = settings.syncSource
+
+        for channel in 0..<OrpheusWire.analogChannelCount {
+            await writeNow(ParameterID.inputLevel + UInt32(channel), .int(Int64(analog[channel].lineInputLevel)))
+            await writeNow(ParameterID.lineOutputLevel + UInt32(channel), .int(Int64(analog[channel].lineOutputLevel)))
+            await writeNow(ParameterID.overkiller + UInt32(channel), .bool(analog[channel].overkiller))
+            if channel < 4 {
+                await writeNow(ParameterID.phantom + UInt32(channel), .bool(analog[channel].phantom))
+                await writeNow(ParameterID.polarity + UInt32(channel), .bool(analog[channel].phase))
+                await writeNow(ParameterID.highPassFilter + UInt32(channel), .int(Int64(analog[channel].filter)))
+                let gain = analog[channel].type == .instrument ? analog[channel].instrumentGain : analog[channel].micGain
+                await writeNow(ParameterID.gain + UInt32(channel), .double(Double(gain)))
+            }
+        }
+        for pair in 0..<OrpheusMidSide.pairCount {
+            await writeNow(ParameterID.midSide + UInt32(pair), .bool(analog[pair].midSide))
+        }
+
+        await writeNow(ParameterID.digitalSampleRate, .int(Int64(digital.sampleRate)))
+        await writeNow(ParameterID.digitalBitDepth, .int(Int64(digital.bitDepth)))
+        await writeNow(ParameterID.digitalSync, .int(Int64(digital.syncSource)))
+        await writeNow(ParameterID.digitalInputType, .int(Int64(digital.inputType)))
+        await writeNow(ParameterID.digitalChannelStatus, .int(Int64(digital.channelStatus)))
+
+        await writeNow(ParameterID.adatMode, .int(Int64(unit.adatMode)))
+        if let source = settings.syncSource,
+           !(source == .adat && !OrpheusUnitState.adatModeHasInput(unit.adatMode)) {
+            await writeNow(ParameterID.clockSource, .int(Int64(source.rawValue)))
+        } else if previousSync == .adat && !unit.hasAdatInput {
+            syncSource = .local
+            await writeNow(ParameterID.clockSource, .int(Int64(OrpheusSyncSource.local.rawValue)))
+        }
+        await writeNow(ParameterID.sampleRateConverter, .int(Int64(unit.sampleRateConverter)))
+        await writeNow(ParameterID.clockOutput, .int(Int64(unit.clockOutput)))
+        await writeNow(ParameterID.frontPanelMeterMode, .int(Int64(unit.frontPanelMeterMode)))
+        await writeNow(ParameterID.identify, .bool(unit.identify))
+
+        await writeNow(ParameterID.outputVolume, .double(Double(unit.masterVolume) / 256.0))
+        await writeNow(ParameterID.outputMute, .bool(unit.masterMute))
+        await writeNow(ParameterID.masterLock, .bool(unit.masterLock))
+        await writeNow(ParameterID.volumeSelectMask, .double(Double(unit.volumeSelectMask)))
+        await writeNow(ParameterID.headphoneSource, .int(Int64(unit.headphoneSource)))
+
+        for bus in 0..<OrpheusWire.mixBusCount {
+            await writeNow(ParameterID.mixerBusGain + UInt32(bus), .double(Double(mixBuses[bus].gain) / 256.0))
+            await writeNow(ParameterID.mixerBusMute + UInt32(bus), .bool(mixBuses[bus].mute))
+            await writeNow(ParameterID.mixerDefeat + UInt32(bus), .bool(mixBuses[bus].defeated))
+            for input in 0..<OrpheusWire.mixInputCount {
+                let index = UInt32(bus * 12 + input)
+                await writeNow(ParameterID.mixer + index, .double(Double(mixBuses[bus].inputs[input].gain) / 256.0))
+                await writeNow(ParameterID.mixerMute + index, .bool(mixBuses[bus].inputs[input].mute))
+                if input % 2 == 0, OrpheusMix.hardwareLinkablePairs.contains(input) {
+                    await writeNow(ParameterID.mixerLink + index, .bool(mixBuses[bus].inputs[input].linked))
+                }
+                let panTarget = mixBuses[bus].inputs[input].linked ? input & ~1 : input
+                if panTarget == input {
+                    await writeNow(ParameterID.mixerPan + index, .double(Double(mixBuses[bus].inputs[input].position)))
+                }
+            }
+            await writeNow(ParameterID.mixerSolo + UInt32(bus), .double(Double(mixBuses[bus].soloMask)))
+        }
+    }
 
     private func applyPhantom(channel: Int, enabled: Bool) {
         analog[channel].phantom = enabled

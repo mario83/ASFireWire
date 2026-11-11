@@ -129,6 +129,8 @@ struct OrpheusClassicButton: View {
 struct OrpheusClassicCombo<Value: Hashable>: View {
     var image: String = "combo56"
     var showsTitle = true
+    var titleColor: Color = .white
+    var titleTrailingPadding: CGFloat = 18
     let choices: [(Value, String)]
     let selection: Value
     let onSelect: (Value) -> Void
@@ -148,11 +150,11 @@ struct OrpheusClassicCombo<Value: Hashable>: View {
             if showsTitle {
                 Text(displayedTitle)
                     .font(.custom("Helvetica", size: 11))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(titleColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
                     .padding(.leading, 6)
-                    .padding(.trailing, 18)
+                    .padding(.trailing, titleTrailingPadding)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .allowsHitTesting(false)
             }
@@ -241,10 +243,14 @@ extension OrpheusClassicCombo where Value == UInt8 {
          choices: [OrpheusChoice],
          selection: UInt8,
          showsTitle: Bool = true,
+         titleColor: Color = .white,
+         titleTrailingPadding: CGFloat = 18,
          onSelect: @escaping (UInt8) -> Void) {
         let items = OrpheusChoices.including(selection, in: choices)
         self.init(image: image,
                   showsTitle: showsTitle,
+                  titleColor: titleColor,
+                  titleTrailingPadding: titleTrailingPadding,
                   choices: items.map { ($0.value, $0.shortLabel) },
                   selection: selection,
                   onSelect: onSelect)

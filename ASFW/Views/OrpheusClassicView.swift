@@ -1,8 +1,13 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct OrpheusClassicView: View {
     @ObservedObject var viewModel: OrpheusControlViewModel
     @State private var page = OrpheusClassicPage.input
+    @State private var settingsMessage: String?
+    /// ADAT tab Send/Return only chooses which meter bank is shown.
+    @State private var adatShowSend = true
 
     private var meterFeed: OrpheusMeterFeed { viewModel.meterFeed }
 
@@ -23,6 +28,11 @@ struct OrpheusClassicView: View {
         .frame(minWidth: OrpheusClassicLayout.window.width,
                minHeight: OrpheusClassicLayout.window.height)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .alert("Orpheus Settings", isPresented: settingsAlertPresented) {
+            Button("OK", role: .cancel) { settingsMessage = nil }
+        } message: {
+            Text(settingsMessage ?? "")
+        }
     }
 
     private var mainPanel: some View {
@@ -45,9 +55,11 @@ struct OrpheusClassicView: View {
         ZStack(alignment: .topLeading) {
             ClassicPlaced(OrpheusClassicBox(8, 448, 270, 16), parentHeight: OrpheusClassicLayout.main.height) {
                 OrpheusClassicCombo(image: "deviceCombo",
-                                    choices: [(true, viewModel.device.map { String($0.guidHex.suffix(8)) } ?? "")],
-                                    selection: true,
-                                    onSelect: { _ in })
+                                    titleColor: .black,
+                                    titleTrailingPadding: 74,
+                                    choices: viewModel.unitSelectorItems,
+                                    selection: viewModel.device?.guid ?? 0,
+                                    onSelect: viewModel.selectUnit)
             }
             ClassicPlaced(OrpheusClassicBox(368, 448, 60, 16), parentHeight: OrpheusClassicLayout.main.height) {
                 OrpheusClassicCombo(image: "combo60",
@@ -104,13 +116,13 @@ struct OrpheusClassicView: View {
                                     onSelect: viewModel.setMeterBrightness)
             }
             ClassicPlaced(OrpheusClassicBox(590, 444, 36, 36), parentHeight: OrpheusClassicLayout.main.height) {
-                OrpheusClassicButton(image: "help", frames: 1, action: {})
+                OrpheusClassicButton(image: "help", frames: 1, action: openHelp)
             }
             ClassicPlaced(OrpheusClassicBox(544, 444, 36, 36), parentHeight: OrpheusClassicLayout.main.height) {
-                OrpheusClassicButton(image: "open", frames: 1, action: {})
+                OrpheusClassicButton(image: "open", frames: 1, action: loadSettings)
             }
             ClassicPlaced(OrpheusClassicBox(544, 404, 36, 36), parentHeight: OrpheusClassicLayout.main.height) {
-                OrpheusClassicButton(image: "save", frames: 1, action: {})
+                OrpheusClassicButton(image: "save", frames: 1, action: saveSettings)
             }
         }
     }
@@ -261,7 +273,8 @@ struct OrpheusClassicView: View {
                 ClassicPlaced(OrpheusClassicBox(x, 325, 40, 16)) {
                     OrpheusClassicButton(title: "Vol",
                                          image: "volSelect",
-                                         checked: viewModel.unit.volumeSelectMask & (1 << channel) != 0) {
+                                         checked: viewModel.unit.volumeSelectMask & (1 << channel) != 0,
+                                         enabled: !viewModel.unit.masterLock) {
                         viewModel.setVolumeSelect(bit: channel,
                                                   enabled: viewModel.unit.volumeSelectMask & (1 << channel) == 0)
                     }
@@ -284,18 +297,19 @@ struct OrpheusClassicView: View {
             ClassicPlaced(OrpheusClassicBox(399, 325, 40, 16)) {
                 OrpheusClassicButton(title: "HP",
                                      image: "volSelect",
-                                     checked: viewModel.unit.volumeSelectMask & (1 << OrpheusVolumeSelect.headphoneBit) != 0) {
+                                     checked: viewModel.unit.volumeSelectMask & (1 << OrpheusVolumeSelect.headphoneBit) != 0,
+                                     enabled: !viewModel.unit.masterLock) {
                     viewModel.setVolumeSelect(bit: OrpheusVolumeSelect.headphoneBit,
                                               enabled: viewModel.unit.volumeSelectMask & (1 << OrpheusVolumeSelect.headphoneBit) == 0)
                 }
+            }
+            ClassicPlaced(OrpheusClassicBox(520, 206, 104, 104)) {
+                OrpheusClassicKnob(raw: viewModel.unit.masterVolume, onChange: viewModel.setMasterVolume)
             }
             ClassicPlaced(OrpheusClassicBox(518, 325, 40, 16)) {
                 OrpheusClassicButton(title: "Lock", image: "lockMasterVol", checked: viewModel.unit.masterLock) {
                     viewModel.setMasterLock(!viewModel.unit.masterLock)
                 }
-            }
-            ClassicPlaced(OrpheusClassicBox(520, 206, 104, 104)) {
-                OrpheusClassicKnob(raw: viewModel.unit.masterVolume, onChange: viewModel.setMasterVolume)
             }
             ClassicPlaced(OrpheusClassicBox(551, 186, 40, 16)) {
                 OrpheusClassicNumber(text: OrpheusClassicCaption.masterVolume(viewModel.unit.masterVolume),
@@ -468,20 +482,19 @@ struct OrpheusClassicView: View {
     }
 
     private var adatPage: some View {
-        let send = viewModel.unit.adatMode == 1 || viewModel.unit.adatMode == 3
-        return ZStack(alignment: .topLeading) {
+        ZStack(alignment: .topLeading) {
             OrpheusClassicPageBackdrop(kind: .adat)
             ClassicPlaced(OrpheusClassicBox(134, 319, 52, 16)) {
-                OrpheusClassicButton(title: "Send", image: "adatSend", checked: send) {
-                    viewModel.setAdatMode(send ? 0 : 1)
+                OrpheusClassicButton(title: "Send", image: "adatSend", checked: adatShowSend) {
+                    adatShowSend = true
                 }
             }
             ClassicPlaced(OrpheusClassicBox(192, 319, 52, 16)) {
-                OrpheusClassicButton(title: "Return", image: "adatReturn", checked: !send && viewModel.hasAdatInput) {
-                    viewModel.setAdatMode(2)
+                OrpheusClassicButton(title: "Return", image: "adatReturn", checked: !adatShowSend) {
+                    adatShowSend = false
                 }
             }
-            meterColumn(indices: Array((send ? 40 : 32)..<(send ? 48 : 40)),
+            meterColumn(indices: Array((adatShowSend ? 40 : 32)..<(adatShowSend ? 48 : 40)),
                         xs: (0..<8).map { OrpheusClassicLayout.analogMeterX($0) })
         }
     }
@@ -525,6 +538,51 @@ struct OrpheusClassicView: View {
 
     private func meter(at index: Int) -> some View {
         OrpheusClassicMeterWell(feed: meterFeed, index: index)
+    }
+
+    private var settingsAlertPresented: Binding<Bool> {
+        Binding(get: { settingsMessage != nil }, set: { if !$0 { settingsMessage = nil } })
+    }
+
+    private func openHelp() {
+        NSWorkspace.shared.open(OrpheusSettingsXML.manualURL)
+    }
+
+    private func saveSettings() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.xml]
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
+        panel.nameFieldStringValue = viewModel.settingsFileName
+        panel.title = "Save unit settings"
+        panel.prompt = "Save"
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try viewModel.exportSettings(to: url)
+            } catch {
+                settingsMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func loadSettings() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.xml]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
+        panel.title = "Load unit settings"
+        panel.prompt = "Load"
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { @MainActor in
+                do {
+                    try await viewModel.importSettings(from: url)
+                } catch {
+                    settingsMessage = error.localizedDescription
+                }
+            }
+        }
     }
 }
 

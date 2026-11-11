@@ -15,15 +15,36 @@ enum OrpheusVendorArt {
     /// The GIF is the true 703×678 window. The PNG is 714×687 with a green
     /// chroma fringe that showed in the upper corners when scaled into the layout.
     static func chromeBackground() -> NSImage? {
-        if let gif = image(named: "background", extensions: ["gif"]) { return gif }
+        if let gif = image(named: "background", extensions: ["gif"]) {
+            return hidingUnusedWindowButtons(gif)
+        }
         guard let image = image(named: "background", extensions: ["png", "bmp"]) else { return nil }
         let target = OrpheusClassicLayout.window
-        guard image.size.width > target.width + 1 || image.size.height > target.height + 1 else { return image }
+        guard image.size.width > target.width + 1 || image.size.height > target.height + 1 else {
+            return hidingUnusedWindowButtons(image)
+        }
         let rect = NSRect(x: (image.size.width - target.width) / 2,
                           y: (image.size.height - target.height) / 2,
                           width: target.width,
                           height: target.height)
-        return crop(image, to: rect)
+        guard let cropped = crop(image, to: rect) else { return nil }
+        return hidingUnusedWindowButtons(cropped)
+    }
+
+    /// The vendor chrome paints close/minimize into the title strip. ASFW is
+    /// not that standalone window, so clone the empty strip over those widgets.
+    private static func hidingUnusedWindowButtons(_ image: NSImage) -> NSImage {
+        let size = image.size
+        let cover = NSRect(x: 618, y: size.height - 124, width: 72, height: 16)
+        let source = NSRect(x: 540, y: cover.minY, width: 16, height: cover.height)
+        let patched = NSImage(size: size, flipped: false) { rect in
+            NSGraphicsContext.current?.imageInterpolation = .none
+            image.draw(in: rect)
+            image.draw(in: cover, from: source, operation: .copy, fraction: 1)
+            return true
+        }
+        patched.isTemplate = false
+        return patched
     }
 
     private static func image(named name: String, extensions: [String]) -> NSImage? {

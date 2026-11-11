@@ -537,6 +537,7 @@
 		E88CD3EAB43E8860EC0B77ED /* ASFWMidiNub.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B43E14090DC52B179437745 /* ASFWMidiNub.cpp */; };
 		E8E793E5929460B3A42C034D /* PayloadRegistry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4B076CD52C117ABBC6A188EA /* PayloadRegistry.cpp */; };
 		E90855783BC08D1336A75FE6 /* ControlConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1DA298045B14516CA5B40A /* ControlConsoleView.swift */; };
+		E933B7D0B754B760CFE2EE97 /* OrpheusSettingsXML.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600A25B6954417A0F8B82EBE /* OrpheusSettingsXML.swift */; };
 		E94CC1103EC1B40F117C6BD5 /* TopologyMapService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB9EA32B6F51C816943CEC75 /* TopologyMapService.cpp */; };
 		E9900D36EFD73B35A8B56AFB /* IsochTransmitContext.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ED1FEB0CB01D901CB7F5C1C0 /* IsochTransmitContext.cpp */; };
 		E9B69E5879512F2A3D83E1C9 /* AvcDiagnosticsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDFE4AA53DD0A2F23DDCE20D /* AvcDiagnosticsTab.swift */; };
@@ -1057,6 +1058,7 @@
 		5F77253A7A236EFB0ECDE1C1 /* DeviceDiscoveryHandler.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DeviceDiscoveryHandler.hpp; sourceTree = "<group>"; };
 		5FB5C0A58E95DBC92C872879 /* WatchdogCoordinator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = WatchdogCoordinator.cpp; sourceTree = "<group>"; };
 		6007128B9E798C5BAE3BD26B /* IIsochDMAMemory.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = IIsochDMAMemory.hpp; sourceTree = "<group>"; };
+		600A25B6954417A0F8B82EBE /* OrpheusSettingsXML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrpheusSettingsXML.swift; sourceTree = "<group>"; };
 		6017803114CDFE54802701D0 /* ASFWAudioDevice.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ASFWAudioDevice.hpp; sourceTree = "<group>"; };
 		601C29508A5C112F4157A708 /* AudioRtCounters.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AudioRtCounters.hpp; sourceTree = "<group>"; };
 		604730D9D5CD284DB3F4E177 /* MotuFamilyAdapter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = MotuFamilyAdapter.hpp; sourceTree = "<group>"; };
@@ -2726,6 +2728,7 @@
 				A1C171F11B1BD9F5E461A05E /* ControlSnapshot.swift */,
 				1F01A2AE881C63197695A0F1 /* DriverConnectorModels.swift */,
 				1E9384D99E7155512163A62C /* OrpheusModels.swift */,
+				600A25B6954417A0F8B82EBE /* OrpheusSettingsXML.swift */,
 				FDB5F702B5BEE95708CFC5AF /* RomCache.swift */,
 				2D1898C56C850847761283D1 /* RomInterpreter.swift */,
 				5470A979030FEE276E814B89 /* RomModels.swift */,
@@ -4909,6 +4912,7 @@
 				5A97A9E0111709ABC32171EC /* OrpheusClassicView.swift in Sources */,
 				C1003A08FF5568EDDE1CFF81 /* OrpheusControlViewModel.swift in Sources */,
 				DD869DE8879018D08904C3EA /* OrpheusModels.swift in Sources */,
+				E933B7D0B754B760CFE2EE97 /* OrpheusSettingsXML.swift in Sources */,
 				8C90587B40B43EB2638FC87A /* OrpheusVendorArt.swift in Sources */,
 				4290AEB2CC8EF9FA755D9615 /* OverviewView.swift in Sources */,
 				B2065E363F1AC2D5DB5EF5DA /* PhyDiagnostics.swift in Sources */,
